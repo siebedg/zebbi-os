@@ -1,4 +1,4 @@
-import { format, parseISO, differenceInMinutes, isValid } from 'date-fns'
+import { format, parseISO, subDays, differenceInMinutes, isValid } from 'date-fns'
 import { nl } from 'date-fns/locale'
 import type { DailyEntry } from '../types'
 import { SLEEP_SCORE_TRACKED_FROM, VACATION_DATES } from '../types'
@@ -6,6 +6,11 @@ import { enrichEntry } from './sessions'
 
 export function todayISO(): string {
   return format(new Date(), 'yyyy-MM-dd')
+}
+
+/** Kalenderdag vóór `date` (YYYY-MM-DD). */
+export function prevDateISO(dateStr: string): string {
+  return format(subDays(parseISO(dateStr), 1), 'yyyy-MM-dd')
 }
 
 export function dateToLocalISO(d: Date): string {

@@ -15,7 +15,14 @@ import {
   sessionDurationHours,
 } from '../lib/sessions'
 import { applyRestDay, isKnownRestDate, isRestDay, REST_STRIPE_BG } from '../lib/restDays'
-import { computeSleepHours, entryHasData, formatDateNL, todayISO, uid } from '../lib/utils'
+import {
+  computeSleepHours,
+  entryHasData,
+  formatDateNL,
+  prevDateISO,
+  todayISO,
+  uid,
+} from '../lib/utils'
 import { Card, SectionTitle, Input, Toggle, Btn } from './ui'
 
 function initialRestDay(entry?: DailyEntry, date?: string): boolean {
@@ -84,6 +91,7 @@ export function DailyEntryForm({
   onDelete?: (date: string) => void
 }) {
   const date = initial?.date ?? todayISO()
+  const bedDateLabel = formatDateNL(prevDateISO(date), 'EEE d MMM')
   const [wakeTime, setWakeTime] = useState(initial?.wakeTime ?? '')
   const [bedTime, setBedTime] = useState(initial?.bedTime ?? '')
   const [sleepScore, setSleepScore] = useState<number | ''>(
@@ -264,7 +272,7 @@ export function DailyEntryForm({
   const hasAnySleep = Boolean(wakeTime || bedTime || sleepScore !== '')
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="space-y-4">
       <Card className="p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <SectionTitle sub={formatDateNL(date, 'EEEE d MMMM yyyy')}>
@@ -311,8 +319,11 @@ export function DailyEntryForm({
               </button>
             )}
           </div>
+          <p className="mb-3 text-xs text-[var(--color-muted)]">
+            Whoop-stijl: wake van vandaag, bedtijd van gisteravond ({bedDateLabel}).
+          </p>
           <div className="grid gap-2 sm:grid-cols-2">
-            <SleepField label="Wake" hasValue={Boolean(wakeTime)} onClear={() => clearSleepField('wake')}>
+            <SleepField label="Wake (vandaag)" hasValue={Boolean(wakeTime)} onClear={() => clearSleepField('wake')}>
               <input
                 type="time"
                 value={wakeTime}
@@ -320,7 +331,11 @@ export function DailyEntryForm({
                 className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20"
               />
             </SleepField>
-            <SleepField label="Bed" hasValue={Boolean(bedTime)} onClear={() => clearSleepField('bed')}>
+            <SleepField
+              label={`Bed (${bedDateLabel})`}
+              hasValue={Boolean(bedTime)}
+              onClear={() => clearSleepField('bed')}
+            >
               <input
                 type="time"
                 value={bedTime}
