@@ -12,6 +12,9 @@ const MONTHS = {
   february: { year: 2026, month: 2, hasScore: true, dwCount: 5 },
   march: { year: 2026, month: 3, hasScore: true, dwCount: 5 },
   april: { year: 2026, month: 4, hasScore: true, dwCount: 5 },
+  may: { year: 2026, month: 5, hasScore: true, dwCount: 5 },
+  june: { year: 2026, month: 6, hasScore: true, dwCount: 5 },
+  juni: { year: 2026, month: 6, hasScore: true, dwCount: 5 },
 }
 
 // eslint-disable-next-line -- raw spreadsheet paste
@@ -36,7 +39,7 @@ function num(s) {
 }
 
 function detectMonth(line) {
-  const m = line.match(/^(December|January|Februari|February|March|April)\s+\d/i)
+  const m = line.match(/^(December|January|Februari|February|March|April|May|June|Juni)\s+\d/i)
   return m ? m[1].toLowerCase() : null
 }
 
@@ -127,6 +130,8 @@ function parseAll(raw) {
     'february-2026.json': [],
     'march-2026.json': [],
     'april-2026.json': [],
+    'may-2026.json': [],
+    'june-2026.json': [],
   }
   let cfg = MONTHS.december
   let file = 'december-2025.json'
@@ -142,6 +147,8 @@ function parseAll(raw) {
       else if (cfg.month === 2) file = 'february-2026.json'
       else if (cfg.month === 3) file = 'march-2026.json'
       else if (cfg.month === 4) file = 'april-2026.json'
+      else if (cfg.month === 5) file = 'may-2026.json'
+      else if (cfg.month === 6) file = 'june-2026.json'
     }
     const entry = parseLine(trimmed, cfg)
     if (entry) byFile[file].push(entry)

@@ -1,67 +1,66 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AppState, DailyEntry } from '../types'
 import { enrichEntry } from '../lib/sessions'
-import {
-  loadApril2026,
-  loadDecember2025,
-  loadFebruary2026,
-  loadJanuary2026,
-  loadMarch2026,
-  loadSeedData,
-  loadState,
-  saveState,
-} from '../lib/storage'
-import {
-  entryHasData,
-  mergeDailyEntries,
-  patchApril2026,
-  patchDecember2025,
-  patchFebruary2026,
-  patchJanuary2026,
-  patchMarch2026,
-  todayISO,
-} from '../lib/utils'
+import { loadAllBundledMonths, loadSeedData, loadState, saveState } from '../lib/storage'
+import { entryHasData, mergeDailyEntries, patchAllBundledMonths, todayISO } from '../lib/utils'
+
+const LOCAL_OVERRIDE_FROM = '2026-05-01'
 
 export function useStore() {
   const [state, setState] = useState<AppState>(loadState)
   const [ready, setReady] = useState(false)
+  const initDone = useRef(false)
 
   useEffect(() => {
+    let cancelled = false
+
     async function init() {
       const current = loadState()
-      let next = { ...current }
-      if (current.dailyLog.length === 0) {
-        next = { ...next, dailyLog: await loadSeedData() }
+      let log = current.dailyLog
+
+      if (log.length === 0) {
+        log = await loadSeedData()
       }
-      const [december, january, february, march, april] = await Promise.all([
-        loadDecember2025(),
-        loadJanuary2026(),
-        loadFebruary2026(),
-        loadMarch2026(),
-        loadApril2026(),
-      ])
-      let log = patchDecember2025(next.dailyLog, december)
-      log = patchJanuary2026(log, january)
-      log = patchFebruary2026(log, february)
-      log = patchMarch2026(log, march)
-      log = patchApril2026(log, april)
-      next = { ...next, dailyLog: log }
-      setState(next)
-      saveState(next)
-      setReady(true)
+
+      const bundled = await loadAllBundledMonths()
+      log = patchAllBundledMonths(log, bundled)
+
+      // Lokale edits (mei+) hebben voorrang boven bundle
+      const localRecent = current.dailyLog.filter(
+        (e) => e.date >= LOCAL_OVERRIDE_FROM && entryHasData(e),
+      )
+      log = mergeDailyEntries(log, localRecent)
+
+      if (!cancelled) {
+        const next = { dailyLog: log }
+        setState(next)
+        saveState(next)
+        initDone.current = true
+        setReady(true)
+      }
     }
+
     init()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   useEffect(() => {
-    if (ready) saveState(state)
+    if (ready && initDone.current) saveState(state)
   }, [state, ready])
 
   const upsertDaily = useCallback((entry: DailyEntry) => {
     const enriched = enrichEntry(entry)
     setState((prev) => {
-      const rest = prev.dailyLog.filter((e) => e.date !== enriched.date)
-      return { ...prev, dailyLog: [...rest, enriched].sort((a, b) => a.date.localeCompare(b.date)) }
+      const next = {
+        ...prev,
+        dailyLog: [...prev.dailyLog.filter((e) => e.date !== enriched.date), enriched].sort((a, b) =>
+          a.date.localeCompare(b.date),
+        ),
+      }
+      saveState(next)
+      return next
     })
   }, [])
 
@@ -71,17 +70,22 @@ export function useStore() {
   )
 
   const importDaily = useCallback((entries: DailyEntry[]) => {
-    setState((prev) => ({
-      ...prev,
-      dailyLog: mergeDailyEntries(prev.dailyLog, entries.map(enrichEntry)),
-    }))
+    setState((prev) => {
+      const next = {
+        ...prev,
+        dailyLog: mergeDailyEntries(prev.dailyLog, entries.map(enrichEntry)),
+      }
+      saveState(next)
+      return next
+    })
   }, [])
 
   const deleteDaily = useCallback((date: string) => {
-    setState((prev) => ({
-      ...prev,
-      dailyLog: prev.dailyLog.filter((e) => e.date !== date),
-    }))
+    setState((prev) => {
+      const next = { ...prev, dailyLog: prev.dailyLog.filter((e) => e.date !== date) }
+      saveState(next)
+      return next
+    })
   }, [])
 
   const todayEntry = useMemo(

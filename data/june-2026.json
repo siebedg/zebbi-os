@@ -1,0 +1,25 @@
+[
+  {
+    "date": "2026-06-11",
+    "sessions": [
+      {
+        "id": "june-11-dw1",
+        "startTime": "08:00",
+        "endTime": "09:30",
+        "focusPercent": 85
+      },
+      {
+        "id": "june-11-dw2",
+        "startTime": "10:43",
+        "endTime": "11:43",
+        "focusPercent": 55
+      }
+    ],
+    "deepWork1": 1.5,
+    "deepWork2": 1,
+    "totalDeepWork": 2.5,
+    "avgFocus": 70,
+    "totalHoursWorked": 2.5,
+    "totalHoursNet": 2.5
+  }
+]

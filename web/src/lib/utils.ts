@@ -77,18 +77,24 @@ export function computeSleepHours(wake?: string, bed?: string): number | undefin
 }
 
 export function entryHasData(entry: DailyEntry): boolean {
+  const legacyDw = [entry.deepWork1, entry.deepWork2, entry.deepWork3, entry.deepWork4, entry.deepWork5, entry.deepWork6]
   return Boolean(
     entry.wakeTime ||
       entry.bedTime ||
       entry.sleepHours != null ||
+      entry.sleepScore != null ||
       entry.meditation != null ||
       entry.gratitude != null ||
       entry.exercise != null ||
       entry.avgFocus != null ||
       entry.totalHoursWorked != null ||
       entry.totalDeepWork != null ||
-      (entry.sessions && entry.sessions.length > 0) ||
-      entry.timetable != null,
+      legacyDw.some((v) => v != null && v > 0) ||
+      (entry.sessions && entry.sessions.some((s) => s.startTime && s.endTime)) ||
+      entry.timetable != null ||
+      entry.notes ||
+      entry.dayType === 'rest' ||
+      entry.dayType === 'vacation',
   )
 }
 
@@ -188,6 +194,23 @@ export function patchMarch2026(dailyLog: DailyEntry[], march: DailyEntry[]): Dai
 
 export function patchApril2026(dailyLog: DailyEntry[], april: DailyEntry[]): DailyEntry[] {
   return patchMonthData(dailyLog, april)
+}
+
+export function patchMay2026(dailyLog: DailyEntry[], may: DailyEntry[]): DailyEntry[] {
+  return patchMonthData(dailyLog, may)
+}
+
+export function patchJune2026(dailyLog: DailyEntry[], june: DailyEntry[]): DailyEntry[] {
+  return patchMonthData(dailyLog, june)
+}
+
+/** Pas alle gebundelde maand-JSON toe (dec → jun). */
+export function patchAllBundledMonths(
+  dailyLog: DailyEntry[],
+  bundled: DailyEntry[],
+): DailyEntry[] {
+  if (bundled.length === 0) return dailyLog
+  return patchMonthData(dailyLog, bundled)
 }
 
 export function mergeDailyEntries(existing: DailyEntry[], incoming: DailyEntry[]): DailyEntry[] {

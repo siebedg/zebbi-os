@@ -44,11 +44,29 @@ export async function loadSeedData(): Promise<AppState['dailyLog']> {
 
 export async function loadBundledMonth(file: string): Promise<AppState['dailyLog']> {
   const res = await fetch(`/${file}`)
+  if (!res.ok) return []
   const raw = await res.json()
+  if (!Array.isArray(raw)) return []
   return raw
     .map((row: Record<string, unknown>) => normalizeImportedRow(row))
     .filter(Boolean)
     .map(enrichEntry)
+}
+
+/** Gebundelde maanden — zelfde bron als dec–apr, ook op Vercel beschikbaar */
+export const BUNDLED_MONTH_FILES = [
+  'december-2025.json',
+  'january-2026.json',
+  'february-2026.json',
+  'march-2026.json',
+  'april-2026.json',
+  'may-2026.json',
+  'june-2026.json',
+] as const
+
+export async function loadAllBundledMonths(): Promise<AppState['dailyLog']> {
+  const chunks = await Promise.all(BUNDLED_MONTH_FILES.map(loadBundledMonth))
+  return chunks.flat()
 }
 
 export async function loadDecember2025(): Promise<AppState['dailyLog']> {
@@ -69,4 +87,12 @@ export async function loadMarch2026(): Promise<AppState['dailyLog']> {
 
 export async function loadApril2026(): Promise<AppState['dailyLog']> {
   return loadBundledMonth('april-2026.json')
+}
+
+export async function loadMay2026(): Promise<AppState['dailyLog']> {
+  return loadBundledMonth('may-2026.json')
+}
+
+export async function loadJune2026(): Promise<AppState['dailyLog']> {
+  return loadBundledMonth('june-2026.json')
 }
