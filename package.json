@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "build": "npm run build --prefix web",
+    "dev": "npm run dev --prefix web",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
