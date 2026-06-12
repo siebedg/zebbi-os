@@ -6,6 +6,12 @@ import { DailyEntryForm } from './components/DailyEntry'
 import { MonthView } from './components/MonthView'
 import { Charts } from './components/Charts'
 import { TrendView } from './components/TrendView'
+import {
+  bedTimeForWakeDate,
+  prepareWhoopSleepSave,
+  prevDateISO,
+  todayISO,
+} from './lib/utils'
 
 function Loading() {
   return (
@@ -22,15 +28,29 @@ function EntryPage() {
   const { todayEntry, upsertDaily, getDailyByDate, deleteDaily } = useStore()
 
   const editDate = paramDate ?? null
-  const entryForEdit = editDate ? getDailyByDate(editDate) : todayEntry
+  const wakeDate = editDate ?? todayEntry?.date ?? todayISO()
+  const wakeEntry = editDate ? getDailyByDate(editDate) : todayEntry
+  const entryForEdit = wakeEntry
+    ? {
+        ...wakeEntry,
+        bedTime: bedTimeForWakeDate(wakeDate, getDailyByDate, wakeEntry),
+      }
+    : editDate
+      ? { date: editDate, bedTime: bedTimeForWakeDate(editDate, getDailyByDate) }
+      : undefined
 
   return (
     <>
       <DailyEntryForm
         key={entryForEdit?.date ?? editDate ?? 'today'}
-        initial={entryForEdit ?? (editDate ? { date: editDate } : undefined)}
+        initial={entryForEdit}
         onSave={(e) => {
-          upsertDaily(e)
+          const { upserts, deleteDates } = prepareWhoopSleepSave(
+            e,
+            getDailyByDate(prevDateISO(e.date)),
+          )
+          for (const row of upserts) upsertDaily(row)
+          for (const d of deleteDates) deleteDaily(d)
           navigate(editDate ? '/maand' : '/')
         }}
         onDelete={(d) => {

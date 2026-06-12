@@ -13,6 +13,47 @@ export function prevDateISO(dateStr: string): string {
   return format(subDays(parseISO(dateStr), 1), 'yyyy-MM-dd')
 }
 
+/** Whoop-stijl: bedtijd in formulier = avond van vorige kalenderdag */
+export function bedTimeForWakeDate(
+  wakeDate: string,
+  getByDate: (date: string) => DailyEntry | undefined,
+  wakeEntry?: DailyEntry,
+): string | undefined {
+  const prevBed = getByDate(prevDateISO(wakeDate))?.bedTime
+  return prevBed ?? wakeEntry?.bedTime
+}
+
+/** Splits save: wake/score/hrs op wake-dag, bedTime op vorige dag (maandweergave) */
+export function prepareWhoopSleepSave(
+  entry: DailyEntry,
+  prevEntry?: DailyEntry,
+): { upserts: DailyEntry[]; deleteDates: string[] } {
+  const bedDate = prevDateISO(entry.date)
+  const { bedTime, ...rest } = entry
+  const today: DailyEntry = {
+    ...rest,
+    sleepHours: computeSleepHours(rest.wakeTime, bedTime || undefined),
+  }
+
+  const upserts: DailyEntry[] = []
+  const deleteDates: string[] = []
+
+  if (entryHasData(today)) upserts.push(today)
+
+  if (bedTime) {
+    upserts.push({ ...(prevEntry ?? { date: bedDate }), date: bedDate, bedTime })
+  } else if (prevEntry?.bedTime) {
+    const { bedTime: _removed, ...prevRest } = prevEntry
+    if (entryHasData(prevRest as DailyEntry)) {
+      upserts.push({ ...(prevRest as DailyEntry), date: bedDate })
+    } else {
+      deleteDates.push(bedDate)
+    }
+  }
+
+  return { upserts, deleteDates }
+}
+
 export function dateToLocalISO(d: Date): string {
   return format(d, 'yyyy-MM-dd')
 }
