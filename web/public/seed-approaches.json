@@ -1,0 +1,74 @@
+[
+  {
+    "weekStart": "2026-03-30",
+    "days": {
+      "monday": 2,
+      "tuesday": 1,
+      "wednesday": 0,
+      "thursday": 0,
+      "friday": 3,
+      "saturday": 0,
+      "sunday": 1
+    }
+  },
+  {
+    "weekStart": "2026-04-06",
+    "days": {
+      "monday": 3,
+      "tuesday": 0,
+      "wednesday": 2,
+      "thursday": 0,
+      "friday": 0,
+      "saturday": 0,
+      "sunday": 10
+    }
+  },
+  {
+    "weekStart": "2026-04-13",
+    "days": {
+      "monday": 0,
+      "tuesday": 2,
+      "wednesday": 0,
+      "thursday": 1,
+      "friday": 0,
+      "saturday": 0,
+      "sunday": 0
+    }
+  },
+  {
+    "weekStart": "2026-04-20",
+    "days": {
+      "monday": 1,
+      "tuesday": 0,
+      "wednesday": 1,
+      "thursday": 1,
+      "friday": 2,
+      "saturday": 0,
+      "sunday": 0
+    }
+  },
+  {
+    "weekStart": "2026-05-18",
+    "days": {
+      "monday": 0,
+      "tuesday": 0,
+      "wednesday": 0,
+      "thursday": 2,
+      "friday": 1,
+      "saturday": 0,
+      "sunday": 0
+    }
+  },
+  {
+    "weekStart": "2026-05-25",
+    "days": {
+      "monday": 1,
+      "tuesday": 0,
+      "wednesday": 0,
+      "thursday": 0,
+      "friday": 0,
+      "saturday": 0,
+      "sunday": 0
+    }
+  }
+]

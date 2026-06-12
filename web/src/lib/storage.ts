@@ -1,0 +1,72 @@
+import type { AppState } from '../types'
+import { enrichEntry } from './sessions'
+import { isValidDateStr, normalizeImportedRow } from './utils'
+
+const STORAGE_KEY = 'improvement-dashboard-v5'
+
+export const defaultState: AppState = { dailyLog: [] }
+
+function migrate(raw: Record<string, unknown>): AppState {
+  const dailyLog = ((raw.dailyLog as AppState['dailyLog']) ?? [])
+    .filter((e) => e?.date && isValidDateStr(e.date))
+    .map((e) => {
+      const next = { ...e }
+      if (next.date < '2026-01-01') delete next.sleepScore
+      return enrichEntry(next)
+    })
+  return { dailyLog }
+}
+
+export function loadState(): AppState {
+  try {
+    for (const key of ['improvement-dashboard-v5', 'improvement-dashboard-v4', 'improvement-dashboard-v3', 'improvement-dashboard-v2', 'improvement-dashboard-v1']) {
+      const raw = localStorage.getItem(key)
+      if (raw) return migrate(JSON.parse(raw))
+    }
+    return { ...defaultState }
+  } catch {
+    return { ...defaultState }
+  }
+}
+
+export function saveState(state: AppState): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+}
+
+export async function loadSeedData(): Promise<AppState['dailyLog']> {
+  const res = await fetch('/seed-daily-log.json')
+  const raw = await res.json()
+  return raw
+    .map((row: Record<string, unknown>) => normalizeImportedRow(row))
+    .filter(Boolean)
+    .map(enrichEntry)
+}
+
+export async function loadBundledMonth(file: string): Promise<AppState['dailyLog']> {
+  const res = await fetch(`/${file}`)
+  const raw = await res.json()
+  return raw
+    .map((row: Record<string, unknown>) => normalizeImportedRow(row))
+    .filter(Boolean)
+    .map(enrichEntry)
+}
+
+export async function loadDecember2025(): Promise<AppState['dailyLog']> {
+  return loadBundledMonth('december-2025.json')
+}
+
+export async function loadJanuary2026(): Promise<AppState['dailyLog']> {
+  return loadBundledMonth('january-2026.json')
+}
+
+export async function loadFebruary2026(): Promise<AppState['dailyLog']> {
+  return loadBundledMonth('february-2026.json')
+}
+
+export async function loadMarch2026(): Promise<AppState['dailyLog']> {
+  return loadBundledMonth('march-2026.json')
+}
+
+export async function loadApril2026(): Promise<AppState['dailyLog']> {
+  return loadBundledMonth('april-2026.json')
+}
