@@ -13,6 +13,8 @@ export type DayType = 'normal' | 'rest' | 'vacation' | 'travel'
 
 export interface DailyEntry {
   date: string
+  /** ISO timestamp — nieuwste wint bij sync tussen apparaten */
+  updatedAt?: string
   wakeTime?: string
   bedTime?: string
   sleepHours?: number
@@ -43,7 +45,7 @@ export interface AppState {
   dailyLog: DailyEntry[]
 }
 
-export type TabId = 'entry' | 'timeline' | 'charts'
+export type TabId = 'entry' | 'timeline' | 'charts' | 'trend'
 
 export const MAX_SESSIONS = 8
 

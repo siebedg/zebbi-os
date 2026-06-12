@@ -213,15 +213,34 @@ export function patchAllBundledMonths(
   return patchMonthData(dailyLog, bundled)
 }
 
-export function mergeDailyEntries(existing: DailyEntry[], incoming: DailyEntry[]): DailyEntry[] {
+function entryStamp(e: DailyEntry): string {
+  return e.updatedAt ?? `${e.date}T00:00:00.000Z`
+}
+
+/** Nieuwste `updatedAt` per datum wint — voor cloud + local + bundle merge */
+export function mergeByUpdatedAt(existing: DailyEntry[], incoming: DailyEntry[]): DailyEntry[] {
   const map = new Map<string, DailyEntry>()
-  for (const e of existing) map.set(e.date, e)
-  for (const e of incoming) {
-    const prev = map.get(e.date)
-    if (!prev || !entryHasData(prev)) map.set(e.date, e)
-    else if (entryHasData(e)) map.set(e.date, { ...prev, ...e })
+  const add = (e: DailyEntry) => {
+    const enriched = enrichEntry(e)
+    const prev = map.get(enriched.date)
+    if (!prev) {
+      map.set(enriched.date, enriched)
+      return
+    }
+    const keepPrev = entryStamp(prev) > entryStamp(enriched)
+    if (keepPrev) {
+      map.set(enriched.date, enrichEntry({ ...enriched, ...prev, date: enriched.date }))
+    } else {
+      map.set(enriched.date, enrichEntry({ ...prev, ...enriched }))
+    }
   }
+  for (const e of existing) add(e)
+  for (const e of incoming) add(e)
   return [...map.values()].sort((a, b) => a.date.localeCompare(b.date))
+}
+
+export function mergeDailyEntries(existing: DailyEntry[], incoming: DailyEntry[]): DailyEntry[] {
+  return mergeByUpdatedAt(existing, incoming)
 }
 
 export function uid(): string {
