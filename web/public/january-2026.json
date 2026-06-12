@@ -71,8 +71,7 @@
     "sleepScore": 0.82,
     "meditation": 15,
     "gratitude": false,
-    "exercise": false,
-    "dayType": "rest"
+    "exercise": false
   },
   {
     "date": "2026-01-06",
@@ -180,8 +179,7 @@
     "sleepScore": 0.87,
     "meditation": 5,
     "gratitude": true,
-    "exercise": false,
-    "dayType": "rest"
+    "exercise": false
   },
   {
     "date": "2026-01-13",
@@ -288,8 +286,7 @@
     "sleepScore": 0.91,
     "meditation": 12,
     "gratitude": true,
-    "exercise": true,
-    "dayType": "rest"
+    "exercise": true
   },
   {
     "date": "2026-01-20",
@@ -391,8 +388,7 @@
     "sleepScore": 0.87,
     "meditation": 11,
     "gratitude": false,
-    "exercise": false,
-    "dayType": "rest"
+    "exercise": false
   },
   {
     "date": "2026-01-27",
@@ -442,7 +438,6 @@
     "sleepScore": 0.87,
     "meditation": 6,
     "gratitude": true,
-    "exercise": true,
-    "dayType": "rest"
+    "exercise": true
   }
 ]

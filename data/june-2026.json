@@ -1,25 +1,45 @@
 [
   {
+    "date": "2026-06-05",
+    "gratitude": false,
+    "exercise": false,
+    "timetable": 65
+  },
+  {
+    "date": "2026-06-09",
+    "gratitude": false,
+    "exercise": false,
+    "avgFocus": 77,
+    "deepWork1": 1.3,
+    "deepWork2": 1,
+    "deepWork3": 1.22,
+    "totalDeepWork": 3.52,
+    "timetable": 98
+  },
+  {
+    "date": "2026-06-10",
+    "bedTime": "07:39",
+    "meditation": 5,
+    "gratitude": false,
+    "exercise": false,
+    "avgFocus": 73,
+    "deepWork1": 1.25,
+    "deepWork2": 1,
+    "deepWork3": 1,
+    "totalDeepWork": 3.25,
+    "timetable": 50
+  },
+  {
     "date": "2026-06-11",
-    "sessions": [
-      {
-        "id": "june-11-dw1",
-        "startTime": "08:00",
-        "endTime": "09:30",
-        "focusPercent": 85
-      },
-      {
-        "id": "june-11-dw2",
-        "startTime": "10:43",
-        "endTime": "11:43",
-        "focusPercent": 55
-      }
-    ],
+    "wakeTime": "07:00",
+    "sleepScore": 0.83,
+    "meditation": 5,
+    "gratitude": true,
+    "exercise": true,
+    "avgFocus": 76,
     "deepWork1": 1.5,
     "deepWork2": 1,
-    "totalDeepWork": 2.5,
-    "avgFocus": 70,
-    "totalHoursWorked": 2.5,
-    "totalHoursNet": 2.5
+    "deepWork3": 1,
+    "totalDeepWork": 3.5
   }
 ]
