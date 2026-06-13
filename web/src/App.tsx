@@ -30,7 +30,8 @@ function EntryPage() {
   const editDate = paramDate ?? null
   const wakeDate = editDate ?? todayEntry?.date ?? todayISO()
   const wakeEntry = editDate ? getDailyByDate(editDate) : todayEntry
-  const bedTargetDate = editDate ? editDate : prevDateISO(wakeDate)
+  /** Bed op vorige kalenderdag in maand; ingevuld op wake-dag (12 jun entry → 11 jun Sleep) */
+  const bedTargetDate = prevDateISO(wakeDate)
   const entryForEdit = wakeEntry
     ? {
         ...wakeEntry,

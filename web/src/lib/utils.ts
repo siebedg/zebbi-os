@@ -22,8 +22,7 @@ export function bedTimeForForm(
 }
 
 /**
- * Wake/score/werk op wake-dag. Bed op `bedTargetDate` (maand Sleep-kolom).
- * Vandaag: bedTarget = gisteren. /dag/:date: bedTarget = die dag.
+ * Wake/score/werk op wake-dag. Bed op `bedTargetDate` (= vorige kalenderdag, maand Sleep-kolom).
  */
 export function prepareWhoopSleepSave(
   entry: DailyEntry,
