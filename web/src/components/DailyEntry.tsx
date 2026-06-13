@@ -19,11 +19,10 @@ import {
   computeSleepHours,
   entryHasData,
   formatDateNL,
-  prevDateISO,
   todayISO,
   uid,
 } from '../lib/utils'
-import { Card, SectionTitle, Input, Toggle, Btn } from './ui'
+import { Card, SectionTitle, Input, Toggle, Btn, HabitChoice, TimeInput12 } from './ui'
 
 function initialRestDay(entry?: DailyEntry, date?: string): boolean {
   if (!entry) return isKnownRestDate(date ?? todayISO())
@@ -81,17 +80,19 @@ function ensureSessions(entry?: DailyEntry): DeepWorkSession[] {
 
 export function DailyEntryForm({
   initial,
+  bedTargetDate,
   onSave,
   onBulkSave,
   onDelete,
 }: {
   initial?: DailyEntry
+  bedTargetDate: string
   onSave: (entry: DailyEntry) => void
   onBulkSave?: (entries: DailyEntry[]) => void
   onDelete?: (date: string) => void
 }) {
   const date = initial?.date ?? todayISO()
-  const bedDateLabel = formatDateNL(prevDateISO(date), 'EEE d MMM')
+  const bedDateLabel = formatDateNL(bedTargetDate, 'EEE d MMM')
   const [wakeTime, setWakeTime] = useState(initial?.wakeTime ?? '')
   const [bedTime, setBedTime] = useState(initial?.bedTime ?? '')
   const [sleepScore, setSleepScore] = useState<number | ''>(
@@ -102,8 +103,8 @@ export function DailyEntryForm({
       : '',
   )
   const [meditation, setMeditation] = useState<number | ''>(initial?.meditation ?? '')
-  const [gratitude, setGratitude] = useState(initial?.gratitude ?? false)
-  const [exercise, setExercise] = useState(initial?.exercise ?? false)
+  const [gratitude, setGratitude] = useState<boolean | undefined>(initial?.gratitude)
+  const [exercise, setExercise] = useState<boolean | undefined>(initial?.exercise)
   const [sessions, setSessions] = useState<DeepWorkSession[]>(() => ensureSessions(initial))
   const [timetable, setTimetable] = useState<number | ''>(initial?.timetable ?? '')
   const [restDay, setRestDay] = useState(() => initialRestDay(initial, date))
@@ -123,8 +124,8 @@ export function DailyEntryForm({
         : '',
     )
     setMeditation(initial?.meditation ?? '')
-    setGratitude(initial?.gratitude ?? false)
-    setExercise(initial?.exercise ?? false)
+    setGratitude(initial?.gratitude)
+    setExercise(initial?.exercise)
     setSessions(ensureSessions(initial))
     setTimetable(initial?.timetable ?? '')
     setRestDay(initialRestDay(initial, initial?.date ?? date))
@@ -229,8 +230,8 @@ export function DailyEntryForm({
       sleepHours: computeSleepHours(wakeTime || undefined, bedTime || undefined),
       sleepScore: score,
       meditation: meditation !== '' ? Number(meditation) : undefined,
-      gratitude,
-      exercise,
+      ...(gratitude !== undefined ? { gratitude } : {}),
+      ...(exercise !== undefined ? { exercise } : {}),
       dayType: restDay ? 'rest' : 'normal',
     }
 
@@ -320,28 +321,18 @@ export function DailyEntryForm({
             )}
           </div>
           <p className="mb-3 text-xs text-[var(--color-muted)]">
-            Whoop-stijl: wake van vandaag, bedtijd van gisteravond ({bedDateLabel}).
+            Whoop-stijl: wake van vandaag, bedtijd van {bedDateLabel} (avond).
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
             <SleepField label="Wake (vandaag)" hasValue={Boolean(wakeTime)} onClear={() => clearSleepField('wake')}>
-              <input
-                type="time"
-                value={wakeTime}
-                onChange={(e) => setWakeTime(e.target.value)}
-                className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20"
-              />
+              <TimeInput12 value={wakeTime} onChange={setWakeTime} />
             </SleepField>
             <SleepField
               label={`Bed (${bedDateLabel})`}
               hasValue={Boolean(bedTime)}
               onClear={() => clearSleepField('bed')}
             >
-              <input
-                type="time"
-                value={bedTime}
-                onChange={(e) => setBedTime(e.target.value)}
-                className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20"
-              />
+              <TimeInput12 value={bedTime} onChange={setBedTime} />
             </SleepField>
             <SleepField
               label="Sc%"
@@ -375,8 +366,8 @@ export function DailyEntryForm({
               value={meditation}
               onChange={(e) => setMeditation(e.target.value ? parseFloat(e.target.value) : '')}
             />
-            <Toggle label="Gratitude journal" checked={gratitude} onChange={setGratitude} />
-            <Toggle label="Exercise" checked={exercise} onChange={setExercise} />
+            <HabitChoice label="Gratitude journal" value={gratitude} onChange={setGratitude} />
+            <HabitChoice label="Exercise" value={exercise} onChange={setExercise} />
           </div>
         </Card>
       </div>
@@ -420,18 +411,20 @@ export function DailyEntryForm({
                   </span>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-3">
-                  <Input
-                    label="Start"
-                    type="time"
-                    value={s.startTime}
-                    onChange={(e) => updateSession(s.id, { startTime: e.target.value })}
-                  />
-                  <Input
-                    label="Einde"
-                    type="time"
-                    value={s.endTime}
-                    onChange={(e) => updateSession(s.id, { endTime: e.target.value })}
-                  />
+                  <label className="block">
+                    <span className="mb-1 block text-sm font-medium text-[var(--color-text)]">Start</span>
+                    <TimeInput12
+                      value={s.startTime}
+                      onChange={(v) => updateSession(s.id, { startTime: v })}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-sm font-medium text-[var(--color-text)]">Einde</span>
+                    <TimeInput12
+                      value={s.endTime}
+                      onChange={(v) => updateSession(s.id, { endTime: v })}
+                    />
+                  </label>
                   <Input
                     label="Focus %"
                     type="number"

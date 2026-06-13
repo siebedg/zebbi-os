@@ -14,25 +14,31 @@ export function prevDateISO(dateStr: string): string {
 }
 
 /** Whoop-stijl: bedtijd in formulier = avond van vorige kalenderdag */
-export function bedTimeForWakeDate(
-  wakeDate: string,
+export function bedTimeForForm(
+  bedTargetDate: string,
   getByDate: (date: string) => DailyEntry | undefined,
-  wakeEntry?: DailyEntry,
 ): string | undefined {
-  const prevBed = getByDate(prevDateISO(wakeDate))?.bedTime
-  return prevBed ?? wakeEntry?.bedTime
+  return getByDate(bedTargetDate)?.bedTime
 }
 
-/** Splits save: wake/score/hrs op wake-dag, bedTime op vorige dag (maandweergave) */
+/**
+ * Wake/score/werk op wake-dag. Bed op `bedTargetDate` (maand Sleep-kolom).
+ * Vandaag: bedTarget = gisteren. /dag/:date: bedTarget = die dag.
+ */
 export function prepareWhoopSleepSave(
   entry: DailyEntry,
-  prevEntry?: DailyEntry,
+  bedTargetDate: string,
+  getByDate: (date: string) => DailyEntry | undefined,
 ): { upserts: DailyEntry[]; deleteDates: string[] } {
-  const bedDate = prevDateISO(entry.date)
   const { bedTime, ...rest } = entry
+  const bedEntry = getByDate(bedTargetDate)
+  const bedBeforeWake = getByDate(prevDateISO(entry.date))?.bedTime
+  const bedForHours =
+    bedTargetDate === prevDateISO(entry.date) ? bedTime || bedBeforeWake : bedBeforeWake
+
   const today: DailyEntry = {
     ...rest,
-    sleepHours: computeSleepHours(rest.wakeTime, bedTime || undefined),
+    sleepHours: computeSleepHours(rest.wakeTime, bedForHours || undefined),
   }
 
   const upserts: DailyEntry[] = []
@@ -41,13 +47,13 @@ export function prepareWhoopSleepSave(
   if (entryHasData(today)) upserts.push(today)
 
   if (bedTime) {
-    upserts.push({ ...(prevEntry ?? { date: bedDate }), date: bedDate, bedTime })
-  } else if (prevEntry?.bedTime) {
-    const { bedTime: _removed, ...prevRest } = prevEntry
+    upserts.push({ ...(bedEntry ?? { date: bedTargetDate }), date: bedTargetDate, bedTime })
+  } else if (bedEntry?.bedTime) {
+    const { bedTime: _removed, ...prevRest } = bedEntry
     if (entryHasData(prevRest as DailyEntry)) {
-      upserts.push({ ...(prevRest as DailyEntry), date: bedDate })
+      upserts.push({ ...(prevRest as DailyEntry), date: bedTargetDate })
     } else {
-      deleteDates.push(bedDate)
+      deleteDates.push(bedTargetDate)
     }
   }
 
@@ -82,6 +88,33 @@ export function parseTimeToMinutes(time?: string): number | null {
   const match = time.match(/^(\d{1,2}):(\d{2})$/)
   if (!match) return null
   return parseInt(match[1], 10) * 60 + parseInt(match[2], 10)
+}
+
+/** 07:30 → 7:30 AM, 22:46 → 10:46 PM */
+export function formatTime12(time?: string): string {
+  if (!time) return ''
+  const mins = parseTimeToMinutes(time)
+  if (mins == null) return time
+  const h24 = Math.floor(mins / 60) % 24
+  const min = mins % 60
+  const ap = h24 >= 12 ? 'PM' : 'AM'
+  const h12 = h24 % 12 || 12
+  return `${h12}:${String(min).padStart(2, '0')} ${ap}`
+}
+
+/** 10:46 PM → 22:46 */
+export function parseTime12To24(input: string): string | undefined {
+  const trimmed = input.trim()
+  if (!trimmed) return undefined
+  if (/^\d{1,2}:\d{2}$/.test(trimmed)) return trimmed
+  const m = trimmed.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i)
+  if (!m) return undefined
+  let h = parseInt(m[1], 10)
+  const min = m[2] ?? '00'
+  const ap = m[3].toUpperCase()
+  if (ap === 'AM' && h === 12) h = 0
+  if (ap === 'PM' && h !== 12) h += 12
+  return `${String(h).padStart(2, '0')}:${min}`
 }
 
 export function parseDistractionMinutes(text?: string): number {

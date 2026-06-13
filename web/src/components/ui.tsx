@@ -1,4 +1,6 @@
 import type { ReactNode, ButtonHTMLAttributes, InputHTMLAttributes } from 'react'
+import { useEffect, useState } from 'react'
+import { formatTime12, parseTime12To24 } from '../lib/utils'
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
@@ -93,6 +95,93 @@ export function Toggle({
         />
       </span>
     </button>
+  )
+}
+
+export function HabitChoice({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: boolean | undefined
+  onChange: (v: boolean | undefined) => void
+}) {
+  const options: { key: string; pick: boolean | undefined; text: string }[] = [
+    { key: 'unset', pick: undefined, text: '—' },
+    { key: 'yes', pick: true, text: '✓' },
+    { key: 'no', pick: false, text: '✗' },
+  ]
+
+  return (
+    <div>
+      <span className="mb-1 block text-sm font-medium text-[var(--color-text)]">{label}</span>
+      <div className="flex gap-1">
+        {options.map((o) => {
+          const active = value === o.pick
+          return (
+            <button
+              key={o.key}
+              type="button"
+              onClick={() => onChange(o.pick)}
+              className={`min-w-[2.5rem] rounded-md border px-2 py-1.5 text-sm font-medium transition ${
+                active
+                  ? o.pick === true
+                    ? 'border-[var(--color-good)] bg-[var(--color-good)]/15 text-[var(--color-good)]'
+                    : o.pick === false
+                      ? 'border-[var(--color-bad)] bg-[var(--color-bad)]/15 text-[var(--color-bad)]'
+                      : 'border-[var(--color-border)] bg-[var(--color-surface-overlay)] text-[var(--color-muted)]'
+                  : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-muted)] hover:bg-[var(--color-surface-overlay)]'
+              }`}
+            >
+              {o.text}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+export function TimeInput12({
+  value,
+  onChange,
+  className = '',
+}: {
+  value: string
+  onChange: (hhmm: string) => void
+  className?: string
+}) {
+  const [text, setText] = useState(() => (value ? formatTime12(value) : ''))
+
+  useEffect(() => {
+    setText(value ? formatTime12(value) : '')
+  }, [value])
+
+  return (
+    <input
+      type="text"
+      inputMode="text"
+      placeholder="10:46 PM"
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => {
+        const trimmed = text.trim()
+        if (!trimmed) {
+          onChange('')
+          setText('')
+          return
+        }
+        const parsed = parseTime12To24(trimmed)
+        if (parsed) {
+          onChange(parsed)
+          setText(formatTime12(parsed))
+        } else {
+          setText(value ? formatTime12(value) : '')
+        }
+      }}
+      className={`w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20 ${className}`}
+    />
   )
 }
 

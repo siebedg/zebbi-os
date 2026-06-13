@@ -7,7 +7,7 @@ import { MonthView } from './components/MonthView'
 import { Charts } from './components/Charts'
 import { TrendView } from './components/TrendView'
 import {
-  bedTimeForWakeDate,
+  bedTimeForForm,
   prepareWhoopSleepSave,
   prevDateISO,
   todayISO,
@@ -30,13 +30,14 @@ function EntryPage() {
   const editDate = paramDate ?? null
   const wakeDate = editDate ?? todayEntry?.date ?? todayISO()
   const wakeEntry = editDate ? getDailyByDate(editDate) : todayEntry
+  const bedTargetDate = editDate ? editDate : prevDateISO(wakeDate)
   const entryForEdit = wakeEntry
     ? {
         ...wakeEntry,
-        bedTime: bedTimeForWakeDate(wakeDate, getDailyByDate, wakeEntry),
+        bedTime: bedTimeForForm(bedTargetDate, getDailyByDate),
       }
     : editDate
-      ? { date: editDate, bedTime: bedTimeForWakeDate(editDate, getDailyByDate) }
+      ? { date: editDate, bedTime: bedTimeForForm(bedTargetDate, getDailyByDate) }
       : undefined
 
   return (
@@ -44,11 +45,9 @@ function EntryPage() {
       <DailyEntryForm
         key={entryForEdit?.date ?? editDate ?? 'today'}
         initial={entryForEdit}
+        bedTargetDate={bedTargetDate}
         onSave={(e) => {
-          const { upserts, deleteDates } = prepareWhoopSleepSave(
-            e,
-            getDailyByDate(prevDateISO(e.date)),
-          )
+          const { upserts, deleteDates } = prepareWhoopSleepSave(e, bedTargetDate, getDailyByDate)
           for (const row of upserts) upsertDaily(row)
           for (const d of deleteDates) deleteDaily(d)
           navigate(editDate ? '/maand' : '/')

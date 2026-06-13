@@ -1,6 +1,7 @@
 import type { DailyEntry } from '../types'
 import { SLEEP_SCORE_TRACKED_FROM, VACATION_DATES } from '../types'
 import { enrichEntry } from './sessions'
+import { formatTime12 } from './utils'
 import { isDarkTheme } from './theme'
 
 export type ScoreLevel = 'excellent' | 'good' | 'ok' | 'poor' | 'empty' | 'bool-yes' | 'bool-no'
@@ -154,6 +155,7 @@ export function getCellStyle(field: string, value: unknown, entry?: DailyEntry):
   if (value == null || value === '') return LEVELS.empty
 
   if (field === 'gratitude' || field === 'exercise') {
+    if (value == null) return LEVELS.empty
     return value ? LEVELS['bool-yes'] : LEVELS['bool-no']
   }
 
@@ -210,7 +212,10 @@ export function formatFieldValue(field: string, value: unknown, entry?: DailyEnt
     return '·'
   }
 
-  if (field === 'gratitude' || field === 'exercise') return value ? '✓' : '✗'
+  if (field === 'gratitude' || field === 'exercise') {
+    if (value == null) return '·'
+    return value ? '✓' : '✗'
+  }
   if (field === 'sleepScore') {
     const n = Number(value)
     return `${Math.round((n <= 1 ? n : n / 100) * 100)}`
@@ -219,6 +224,7 @@ export function formatFieldValue(field: string, value: unknown, entry?: DailyEnt
   if (DEEP_WORK_FIELDS.has(field)) return `${Number(value).toFixed(2)}`
   if (field === 'meditation') return `${value}`
   if (field === 'sleepHours') return `${Number(value).toFixed(1)}`
+  if (field === 'wakeTime' || field === 'bedTime') return formatTime12(String(value))
   return String(value)
 }
 
