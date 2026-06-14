@@ -189,10 +189,11 @@ export function MonthView({
                     {DOW[getDay(d)]}
                   </td>
                   {MONTH_VIEW_COLUMNS.flatMap((col) => {
-                    if (isRest && REST_WORK_FIELD_SET.has(col.key) && col.key !== 'deepWork1') {
+                    const restStripeStart = REST_WORK_FIELDS[0]
+                    if (isRest && REST_WORK_FIELD_SET.has(col.key) && col.key !== restStripeStart) {
                       return []
                     }
-                    if (isRest && col.key === 'deepWork1') {
+                    if (isRest && col.key === restStripeStart) {
                       return [
                         <td
                           key="rest-work-stripe"

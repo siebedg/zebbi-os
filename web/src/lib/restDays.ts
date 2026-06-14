@@ -1,8 +1,9 @@
 import type { DailyEntry } from '../types'
 import { REST_DATES } from '../types'
 
-/** DW1–DW5, Tot, TT — één doorlopende rust-streep in maandweergave */
+/** Foc%, DW1–DW5, Tot, TT — één doorlopende rust-streep in maandweergave */
 export const REST_WORK_FIELDS = [
+  'avgFocus',
   'deepWork1',
   'deepWork2',
   'deepWork3',

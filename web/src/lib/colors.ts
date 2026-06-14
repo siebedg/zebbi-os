@@ -3,6 +3,7 @@ import { SLEEP_SCORE_TRACKED_FROM, VACATION_DATES } from '../types'
 import { enrichEntry } from './sessions'
 import { formatTime12 } from './utils'
 import { isDarkTheme } from './theme'
+import { isRestDay, REST_STRIPE_BG, REST_WORK_FIELD_SET } from './restDays'
 
 export type ScoreLevel = 'excellent' | 'good' | 'ok' | 'poor' | 'empty' | 'bool-yes' | 'bool-no'
 
@@ -133,6 +134,10 @@ export function getVacationZone(field: string): 'blue' | 'white' | 'red' | null 
 export function getCellStyle(field: string, value: unknown, entry?: DailyEntry): CellStyle {
   const LEVELS = scoreLevels()
 
+  if (entry && isRestDay(entry) && REST_WORK_FIELD_SET.has(field)) {
+    return { level: 'good', bg: REST_STRIPE_BG, text: '#ffffff' }
+  }
+
   if (field === 'wakeTime' || field === 'bedTime') {
     if (entry && isVacationDay(entry)) return VACATION_BLUE_STYLE
     return timeNeutralStyle()
@@ -206,6 +211,8 @@ export function getCellStyle(field: string, value: unknown, entry?: DailyEntry):
 export function formatFieldValue(field: string, value: unknown, entry?: DailyEntry): string {
   const onVacation = entry && isVacationDay(entry)
   const vacationZone = onVacation ? getVacationZone(field) : null
+
+  if (entry && isRestDay(entry) && REST_WORK_FIELD_SET.has(field)) return ''
 
   if (value == null || value === '') {
     if (vacationZone) return ''
