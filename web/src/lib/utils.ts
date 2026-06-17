@@ -283,7 +283,7 @@ export function patchAllBundledMonths(
   bundled: DailyEntry[],
 ): DailyEntry[] {
   if (bundled.length === 0) return dailyLog
-  return patchMonthData(dailyLog, bundled)
+  return mergeByUpdatedAt(dailyLog, bundled)
 }
 
 function entryStamp(e: DailyEntry): string {

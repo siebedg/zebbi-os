@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { BarChart3, CalendarDays, LineChart, Moon, PenLine, Sun } from 'lucide-react'
+import { BarChart3, BookOpen, CalendarDays, LineChart, Moon, PenLine, Scale, Sun } from 'lucide-react'
 import type { SyncStatus } from '../lib/sync'
 import { useTheme } from '../hooks/useTheme'
 
@@ -8,37 +8,48 @@ const TABS = [
   { path: '/maand', label: 'Maand', icon: CalendarDays, end: false },
   { path: '/trend', label: 'Trend', icon: LineChart, end: false },
   { path: '/grafieken', label: 'Grafieken', icon: BarChart3, end: false },
+  { path: '/lezen', label: 'Lezen', icon: BookOpen, end: false },
+  { path: '/gewicht', label: 'Gewicht', icon: Scale, end: false },
 ] as const
 
-function SyncDot({ status }: { status: SyncStatus }) {
+function SyncDot({ status, error }: { status: SyncStatus; error?: string }) {
   const title =
-    status === 'synced'
+    error ??
+    (status === 'synced'
       ? 'Opgeslagen in cloud'
       : status === 'syncing'
         ? 'Bezig met opslaan…'
-        : status === 'offline'
-          ? 'Alleen lokaal — cloud niet bereikbaar'
-          : 'Sync'
+        : status === 'auth'
+          ? 'PIN vereist'
+          : status === 'offline'
+            ? 'Cloud niet bereikbaar'
+            : 'Sync')
   const color =
     status === 'synced'
       ? 'bg-[var(--color-good)]'
       : status === 'syncing'
         ? 'bg-amber-400'
-        : 'bg-[var(--color-muted)]'
+        : status === 'auth'
+          ? 'bg-[var(--color-bad)]'
+          : 'bg-[var(--color-muted)]'
 
   return (
     <span className="inline-flex items-center gap-1.5 text-xs text-[var(--color-muted)]" title={title}>
       <span className={`h-2 w-2 rounded-full ${color}`} />
-      <span className="hidden sm:inline">{status === 'offline' ? 'Lokaal' : status === 'synced' ? 'Sync' : '…'}</span>
+      <span className="hidden sm:inline max-w-[8rem] truncate">
+        {status === 'offline' ? 'Offline' : status === 'auth' ? 'PIN' : status === 'synced' ? 'Sync' : '…'}
+      </span>
     </span>
   )
 }
 
 export function Layout({
   syncStatus = 'idle',
+  syncError,
   children,
 }: {
   syncStatus?: SyncStatus
+  syncError?: string
   children: React.ReactNode
 }) {
   const { theme, toggleTheme } = useTheme()
@@ -49,7 +60,7 @@ export function Layout({
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <h1 className="text-lg font-semibold tracking-tight text-[var(--color-text)]">Zebbi OS</h1>
           <div className="flex items-center gap-3">
-            <SyncDot status={syncStatus} />
+            <SyncDot status={syncStatus} error={syncError} />
             <button
               type="button"
               onClick={toggleTheme}

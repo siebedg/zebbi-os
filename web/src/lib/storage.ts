@@ -2,9 +2,9 @@ import type { AppState } from '../types'
 import { enrichEntry } from './sessions'
 import { isValidDateStr, normalizeImportedRow } from './utils'
 
-const STORAGE_KEY = 'improvement-dashboard-v5'
+const STORAGE_KEY = 'improvement-dashboard-v6'
 
-export const defaultState: AppState = { dailyLog: [] }
+export const defaultState: AppState = { dailyLog: [], readingBooks: [], weightLog: [] }
 
 function migrate(raw: Record<string, unknown>): AppState {
   const dailyLog = ((raw.dailyLog as AppState['dailyLog']) ?? [])
@@ -14,12 +14,22 @@ function migrate(raw: Record<string, unknown>): AppState {
       if (next.date < '2026-01-01') delete next.sleepScore
       return enrichEntry(next)
     })
-  return { dailyLog }
+  const readingBooks = Array.isArray(raw.readingBooks) ? (raw.readingBooks as AppState['readingBooks']) : []
+  const weightLog = Array.isArray(raw.weightLog) ? (raw.weightLog as AppState['weightLog']) : []
+  const stateUpdatedAt = typeof raw.stateUpdatedAt === 'string' ? raw.stateUpdatedAt : undefined
+  return { dailyLog, readingBooks: readingBooks ?? [], weightLog: weightLog ?? [], stateUpdatedAt }
 }
 
 export function loadState(): AppState {
   try {
-    for (const key of ['improvement-dashboard-v5', 'improvement-dashboard-v4', 'improvement-dashboard-v3', 'improvement-dashboard-v2', 'improvement-dashboard-v1']) {
+    for (const key of [
+      'improvement-dashboard-v6',
+      'improvement-dashboard-v5',
+      'improvement-dashboard-v4',
+      'improvement-dashboard-v3',
+      'improvement-dashboard-v2',
+      'improvement-dashboard-v1',
+    ]) {
       const raw = localStorage.getItem(key)
       if (raw) return migrate(JSON.parse(raw))
     }

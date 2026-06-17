@@ -43,6 +43,31 @@ export interface DailyEntry {
 
 export interface AppState {
   dailyLog: DailyEntry[]
+  readingBooks?: ReadingBook[]
+  weightLog?: WeightEntry[]
+  /** Laatste cloud-save timestamp */
+  stateUpdatedAt?: string
+}
+
+export interface ReadingProgress {
+  day: number
+  pages: number
+}
+
+export interface ReadingBook {
+  id: string
+  title: string
+  pageCount: number
+  daysToRead: number
+  startDate: string
+  progress: ReadingProgress[]
+  updatedAt?: string
+}
+
+export interface WeightEntry {
+  date: string
+  kg: number
+  updatedAt?: string
 }
 
 export type TabId = 'entry' | 'timeline' | 'charts' | 'trend'

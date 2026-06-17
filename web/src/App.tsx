@@ -6,6 +6,9 @@ import { DailyEntryForm } from './components/DailyEntry'
 import { MonthView } from './components/MonthView'
 import { Charts } from './components/Charts'
 import { TrendView } from './components/TrendView'
+import { ReadingView } from './components/ReadingView'
+import { WeightView } from './components/WeightView'
+import { AuthGate } from './components/AuthGate'
 import {
   bedTimeForForm,
   prepareWhoopSleepSave,
@@ -83,18 +86,39 @@ function MonthPage({ entries }: { entries: import('./types').DailyEntry[] }) {
 }
 
 function AppShell() {
-  const { ready, state, syncStatus } = useStore()
+  const { ready, state, syncStatus, syncError, saveReadingBook, deleteReadingBook, upsertWeight, deleteWeight } =
+    useStore()
 
   if (!ready) return <Loading />
 
   return (
-    <Layout syncStatus={syncStatus}>
+    <Layout syncStatus={syncStatus} syncError={syncError}>
       <Routes>
         <Route path="/" element={<EntryPage />} />
         <Route path="/dag/:date" element={<EntryPage />} />
         <Route path="/maand" element={<MonthPage entries={state.dailyLog} />} />
         <Route path="/grafieken" element={<Charts entries={state.dailyLog} />} />
         <Route path="/trend" element={<TrendView entries={state.dailyLog} />} />
+        <Route
+          path="/lezen"
+          element={
+            <ReadingView
+              books={state.readingBooks ?? []}
+              onSave={saveReadingBook}
+              onDelete={deleteReadingBook}
+            />
+          }
+        />
+        <Route
+          path="/gewicht"
+          element={
+            <WeightView
+              entries={state.weightLog ?? []}
+              onUpsert={upsertWeight}
+              onDelete={deleteWeight}
+            />
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>
@@ -104,9 +128,11 @@ function AppShell() {
 export default function App() {
   return (
     <BrowserRouter>
-      <StoreProvider>
-        <AppShell />
-      </StoreProvider>
+      <AuthGate>
+        <StoreProvider>
+          <AppShell />
+        </StoreProvider>
+      </AuthGate>
     </BrowserRouter>
   )
 }
