@@ -8,7 +8,7 @@ import {
   PULL_INTERVAL_MS,
   type SyncStatus,
 } from '../lib/sync'
-import { mergeAppState } from '../lib/mergeState'
+import { mergeAppState, mergeWeightLog } from '../lib/mergeState'
 import { signalAuthLost } from '../lib/auth'
 import { SEED_WEIGHT_LOG } from '../lib/seedWeight'
 import { entryHasData, mergeByUpdatedAt, patchAllBundledMonths, todayISO, uid } from '../lib/utils'
@@ -141,11 +141,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         log = mergeByUpdatedAt(log, remoteResult.state.dailyLog)
       }
 
-      let weightLog = mergeAppState(
-        { dailyLog: [], readingBooks: [], weightLog: local.weightLog ?? [] },
-        remoteResult.state ?? {},
-      ).weightLog ?? []
-      if (weightLog.length === 0) weightLog = SEED_WEIGHT_LOG
+      let weightLog = mergeWeightLog(
+        SEED_WEIGHT_LOG,
+        mergeAppState(
+          { dailyLog: [], readingBooks: [], weightLog: local.weightLog ?? [] },
+          remoteResult.state ?? {},
+        ).weightLog ?? [],
+      )
 
       const merged = mergeAppState(
         { dailyLog: log, readingBooks: [], weightLog },
