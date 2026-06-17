@@ -60,6 +60,8 @@ export interface ReadingBook {
   pageCount: number
   daysToRead: number
   startDate: string
+  /** Pagina's al gelezen vóór dag 1 van dit schema */
+  startPage?: number
   progress: ReadingProgress[]
   updatedAt?: string
 }
