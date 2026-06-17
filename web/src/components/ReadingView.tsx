@@ -1,3 +1,5 @@
+import { format, parseISO } from 'date-fns'
+import { nl } from 'date-fns/locale'
 import { useEffect, useMemo, useState } from 'react'
 import {
   CartesianGrid,
@@ -17,10 +19,13 @@ import { useMediaQuery } from '../hooks/useMediaQuery'
 import {
   bookReadingStats,
   buildReadingChartData,
-  calendarDay,
+  canLogDay,
+  formatSchemaDay,
+  loggableDay,
   pagesPerDayTarget,
+  schemaDateISO,
 } from '../lib/readingStats'
-import { uid } from '../lib/utils'
+import { todayISO, uid } from '../lib/utils'
 import { Btn, Card, Input } from './ui'
 
 function chartPalette(theme: 'light' | 'dark') {
@@ -70,20 +75,25 @@ function BookCard({
   const isMobile = useMediaQuery('(max-width: 767px)')
   const palette = chartPalette(theme)
   const stats = useMemo(() => bookReadingStats(book), [book])
-  const data = useMemo(() => buildReadingChartData(book), [book])
+  const data = useMemo(
+    () => buildReadingChartData(book, isMobile ? 'd/M' : 'd MMM'),
+    [book, isMobile],
+  )
+  const dateByDay = useMemo(() => new Map(data.map((r) => [r.day, r.dateLabel])), [data])
+  const todayDay = loggableDay(book)
+  const todayEntry = book.progress.find((p) => p.day === todayDay)
   const [logOpen, setLogOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
-  const [logDay, setLogDay] = useState(String(calendarDay(book)))
   const [pages, setPages] = useState('')
 
   useEffect(() => {
-    setLogDay(String(calendarDay(book)))
-  }, [book.id, book.startDate])
+    if (logOpen) setPages(todayEntry ? String(todayEntry.pages) : '')
+  }, [logOpen, todayDay, todayEntry?.pages])
 
   const logProgress = () => {
-    const d = parseInt(logDay, 10)
+    const d = todayDay
     const p = parseInt(pages, 10)
-    if (Number.isNaN(d) || d < 0 || d > book.daysToRead) return
+    if (!canLogDay(book, d)) return
     if (Number.isNaN(p) || p < 0 || p > book.pageCount) return
     const next = book.progress.filter((x) => x.day !== d)
     next.push({ day: d, pages: p })
@@ -92,6 +102,11 @@ function BookCard({
     setPages('')
     setLogOpen(false)
   }
+
+  const todayLabel = format(parseISO(stats.todayDate), isMobile ? 'd MMM' : 'EEEE d MMMM', {
+    locale: nl,
+  })
+  const xInterval = book.daysToRead > 10 ? Math.ceil(book.daysToRead / 7) : 0
 
   const yMax = book.pageCount
   const yMin = Math.max(0, stats.start - 5)
@@ -113,6 +128,9 @@ function BookCard({
           </h3>
           <p className="mt-1.5 text-xs text-[var(--color-muted)] sm:text-sm">
             {book.pageCount} pag. · {book.daysToRead} dagen · ~{pagesPerDayTarget(book)} pag/dag
+          </p>
+          <p className="mt-1 text-[11px] text-[var(--color-muted)]">
+            {formatSchemaDay(book, 1, 'd MMM')} – {formatSchemaDay(book, book.daysToRead, 'd MMM yyyy')}
           </p>
         </div>
 
@@ -145,14 +163,14 @@ function BookCard({
       </div>
 
       <p className="pb-1 text-center text-xs text-[var(--color-muted)]">
-        Schema-dag {stats.day} · doel vandaag: {stats.targetNow} pag.
+        Vandaag {todayLabel} · dag {stats.day} · doel: {stats.targetNow} pag.
       </p>
 
       <div className="h-56 w-full px-2 sm:h-64">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={data}
-            margin={{ top: 12, right: isMobile ? 8 : 16, left: isMobile ? -8 : 0, bottom: 4 }}
+            margin={{ top: 12, right: isMobile ? 8 : 16, left: isMobile ? -8 : 0, bottom: isMobile ? 16 : 12 }}
           >
             <CartesianGrid stroke={palette.grid} vertical={false} />
             <XAxis
@@ -160,7 +178,9 @@ function BookCard({
               tick={{ fill: palette.tick, fontSize: 10 }}
               axisLine={false}
               tickLine={false}
-              label={{ value: 'Dag', position: 'insideBottom', offset: -2, fill: palette.tick, fontSize: 10 }}
+              interval={xInterval}
+              tickFormatter={(day) => (day === 0 ? '' : dateByDay.get(day) ?? '')}
+              label={{ value: 'Datum', position: 'insideBottom', offset: -4, fill: palette.tick, fontSize: 10 }}
             />
             <YAxis
               domain={[yMin, yMax]}
@@ -178,7 +198,11 @@ function BookCard({
                 fontSize: 13,
                 color: palette.tooltipText,
               }}
-              labelFormatter={(d) => (d === 0 ? 'Start' : `Dag ${d}`)}
+              labelFormatter={(d) => {
+                if (d === 0) return 'Start'
+                const date = schemaDateISO(book, Number(d))
+                return `Dag ${d} · ${format(parseISO(date), 'd MMM yyyy', { locale: nl })}`
+              }}
               formatter={(v: number | null, name: string) => {
                 if (v == null) return ['—', name]
                 return [`${v} pag.`, name === 'target' ? 'Doellijn' : name === 'logged' ? 'Gelogd' : 'Jij']
@@ -241,34 +265,30 @@ function BookCard({
         </button>
         {logOpen && (
           <div className="space-y-3 border-t border-[var(--color-border)] px-4 py-4">
-            <p className="text-xs text-[var(--color-muted)]">
-              Kies de dag van je schema en hoeveel pagina&apos;s je <strong>totaal</strong> gelezen hebt (cumulatief).
-            </p>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              <div>
-                <label className="mb-1 block text-xs text-[var(--color-muted)]">Dag (0–{book.daysToRead})</label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={book.daysToRead}
-                  value={logDay}
-                  onChange={(e) => setLogDay(e.target.value)}
-                />
-              </div>
-              <div className="col-span-1 sm:col-span-2">
-                <label className="mb-1 block text-xs text-[var(--color-muted)]">Pagina nu op (totaal)</label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={book.pageCount}
-                  placeholder={String(stats.read || stats.targetNow)}
-                  value={pages}
-                  onChange={(e) => setPages(e.target.value)}
-                />
-              </div>
+            <div className="rounded-xl bg-[var(--color-surface-overlay)] px-3 py-2.5 text-center">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-muted)]">
+                Vandaag loggen
+              </p>
+              <p className="mt-0.5 text-sm font-medium text-[var(--color-text)]">
+                {todayLabel} · dag {todayDay}
+              </p>
             </div>
-            <Btn type="button" onClick={logProgress} className="w-full">
-              Opslaan
+            <p className="text-xs text-[var(--color-muted)]">
+              Hoeveel pagina&apos;s heb je <strong>totaal</strong> gelezen (cumulatief)?
+            </p>
+            <div>
+              <label className="mb-1 block text-xs text-[var(--color-muted)]">Pagina nu op (totaal)</label>
+              <Input
+                type="number"
+                min={0}
+                max={book.pageCount}
+                placeholder={String(todayEntry?.pages ?? (stats.read || stats.targetNow))}
+                value={pages}
+                onChange={(e) => setPages(e.target.value)}
+              />
+            </div>
+            <Btn type="button" onClick={logProgress} className="w-full" disabled={stats.done}>
+              {todayEntry ? 'Bijwerken' : 'Opslaan'}
             </Btn>
           </div>
         )}
@@ -298,7 +318,9 @@ function BookCard({
                     className="flex items-center justify-between border-b border-[var(--color-border)] px-4 py-2.5 text-sm last:border-0"
                   >
                     <span className="text-[var(--color-muted)]">
-                      {p.day === 0 ? 'Start' : `Dag ${p.day}`}
+                      {p.day === 0
+                        ? 'Start'
+                        : `${formatSchemaDay(book, p.day, 'd MMM')} · dag ${p.day}`}
                     </span>
                     <span className="font-mono tabular-nums text-[var(--color-text)]">{p.pages} pag.</span>
                   </div>
@@ -325,7 +347,6 @@ export function ReadingView({
   const [pageCount, setPageCount] = useState('100')
   const [daysToRead, setDaysToRead] = useState('10')
   const [startPageInput, setStartPageInput] = useState('0')
-  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
 
   const previewPace = useMemo(() => {
     const pc = parseInt(pageCount, 10)
@@ -345,7 +366,7 @@ export function ReadingView({
       title: title.trim(),
       pageCount: pc,
       daysToRead: days,
-      startDate,
+      startDate: todayISO(),
       startPage: sp > 0 ? sp : undefined,
       progress: [],
     })
@@ -399,13 +420,15 @@ export function ReadingView({
               value={startPageInput}
               onChange={(e) => setStartPageInput(e.target.value)}
             />
-            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             {previewPace != null && (
               <p className="rounded-lg bg-[var(--color-surface-overlay)] px-3 py-2 text-center text-xs text-[var(--color-muted)]">
-                Doellijn: <strong className="text-[var(--color-text)]">{previewPace} pag/dag</strong> recht omhoog
-                {parseInt(startPageInput, 10) > 0 && (
-                  <> · start op pag. {startPageInput}</>
-                )}
+                Start{' '}
+                <strong className="text-[var(--color-text)]">
+                  vandaag ({format(parseISO(todayISO()), 'd MMMM', { locale: nl })})
+                </strong>
+                {' · '}
+                doel: <strong className="text-[var(--color-text)]">{previewPace} pag/dag</strong>
+                {parseInt(startPageInput, 10) > 0 && <> · start op pag. {startPageInput}</>}
               </p>
             )}
             <Btn type="button" onClick={addBook} className="w-full">

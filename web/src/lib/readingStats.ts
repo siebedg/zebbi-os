@@ -1,8 +1,24 @@
-import { addDays, differenceInCalendarDays, parseISO } from 'date-fns'
+import { addDays, differenceInCalendarDays, format, parseISO, subDays } from 'date-fns'
+import { nl } from 'date-fns/locale'
 import type { ReadingBook } from '../types'
 
 export function startPage(book: ReadingBook): number {
   return Math.max(0, book.startPage ?? 0)
+}
+
+/** Kalenderdatum voor schema-dag (dag 1 = startDate). */
+export function schemaDateISO(book: ReadingBook, day: number): string {
+  if (day <= 0) return format(subDays(parseISO(book.startDate), 1), 'yyyy-MM-dd')
+  return format(addDays(parseISO(book.startDate), day - 1), 'yyyy-MM-dd')
+}
+
+export function formatSchemaDay(
+  book: ReadingBook,
+  day: number,
+  pattern: string = 'd MMM',
+): string {
+  if (day === 0) return 'Start'
+  return format(parseISO(schemaDateISO(book, day)), pattern, { locale: nl })
 }
 
 /** Cumulatief gelezen (incl. startpagina) */
@@ -15,6 +31,15 @@ export function pagesRead(book: ReadingBook): number {
 export function calendarDay(book: ReadingBook, ref = new Date()): number {
   const d = differenceInCalendarDays(ref, parseISO(book.startDate)) + 1
   return Math.max(1, Math.min(book.daysToRead, d))
+}
+
+/** Alleen de huidige schema-dag mag gelogd worden (geen terug of vooruit). */
+export function loggableDay(book: ReadingBook, ref = new Date()): number {
+  return calendarDay(book, ref)
+}
+
+export function canLogDay(book: ReadingBook, day: number, ref = new Date()): boolean {
+  return day === loggableDay(book, ref)
 }
 
 /** Lineair doel: dag 0 = startPage, dag N = pageCount */
@@ -32,12 +57,17 @@ export function pagesPerDayTarget(book: ReadingBook): number {
 
 export type ReadingChartRow = {
   day: number
+  date: string
+  dateLabel: string
   target: number
   actual: number | null
   logged: number | null
 }
 
-export function buildReadingChartData(book: ReadingBook): ReadingChartRow[] {
+export function buildReadingChartData(
+  book: ReadingBook,
+  datePattern: string = 'd/M',
+): ReadingChartRow[] {
   const start = startPage(book)
   const progressMap = new Map(book.progress.map((p) => [p.day, p.pages]))
   const rows: ReadingChartRow[] = []
@@ -50,6 +80,8 @@ export function buildReadingChartData(book: ReadingBook): ReadingChartRow[] {
 
     rows.push({
       day,
+      date: schemaDateISO(book, day),
+      dateLabel: day === 0 ? 'Start' : format(parseISO(schemaDateISO(book, day)), datePattern, { locale: nl }),
       target: Math.round(target * 10) / 10,
       actual: lastActual,
       logged: loggedToday,
@@ -72,6 +104,7 @@ export function bookReadingStats(book: ReadingBook) {
   const paceNeeded = daysLeft > 0 && !done ? Math.ceil((left / daysLeft) * 10) / 10 : 0
   const ahead = read - targetNow
   const endDate = addDays(parseISO(book.startDate), book.daysToRead - 1)
+  const todayDate = schemaDateISO(book, day)
 
   let status: { text: string; tone: 'good' | 'warn' | 'neutral' | 'done' }
   if (done) status = { text: 'Boek afgerond', tone: 'done' }
@@ -93,6 +126,7 @@ export function bookReadingStats(book: ReadingBook) {
     paceNeeded,
     ahead,
     endDate,
+    todayDate,
     status,
   }
 }
