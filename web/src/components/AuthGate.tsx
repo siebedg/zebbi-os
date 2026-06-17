@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Lock } from 'lucide-react'
-import { getAccessPin, setAccessPin } from '../lib/auth'
+import { AUTH_LOST_EVENT, clearAccessPin, getAccessPin, setAccessPin } from '../lib/auth'
 import { checkPinRequired, verifyPin } from '../lib/sync'
 import { Btn, Card, Input } from './ui'
 
@@ -9,14 +9,46 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [required, setRequired] = useState(false)
   const [pin, setPin] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [unlocked, setUnlocked] = useState(() => !!getAccessPin())
+  const [unlocked, setUnlocked] = useState(false)
 
   useEffect(() => {
-    checkPinRequired().then((req) => {
+    let cancelled = false
+
+    async function check() {
+      const req = await checkPinRequired()
+      if (cancelled) return
       setRequired(req)
-      if (!req || getAccessPin()) setUnlocked(true)
+
+      if (!req) {
+        setUnlocked(true)
+        setChecking(false)
+        return
+      }
+
+      const stored = getAccessPin()
+      if (stored && (await verifyPin(stored))) {
+        setUnlocked(true)
+      } else {
+        if (stored) clearAccessPin()
+        setUnlocked(false)
+      }
       setChecking(false)
-    })
+    }
+
+    void check()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    const onAuthLost = () => {
+      clearAccessPin()
+      setUnlocked(false)
+      setError('Sessie verlopen — voer je PIN opnieuw in.')
+    }
+    window.addEventListener(AUTH_LOST_EVENT, onAuthLost)
+    return () => window.removeEventListener(AUTH_LOST_EVENT, onAuthLost)
   }, [])
 
   if (checking) {
@@ -39,6 +71,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     }
     setAccessPin(pin)
     setUnlocked(true)
+    window.location.reload()
   }
 
   return (

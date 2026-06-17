@@ -69,8 +69,11 @@ export async function pushRemoteState(state: AppState): Promise<{ ok: boolean; e
 
 export async function checkPinRequired(): Promise<boolean> {
   try {
-    const res = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
-    if (!res.ok) return false
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    })
     const data = (await res.json()) as { required?: boolean }
     return data.required === true
   } catch {

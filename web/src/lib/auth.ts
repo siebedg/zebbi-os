@@ -1,4 +1,5 @@
 const SESSION_KEY = 'zebbi-access-pin'
+export const AUTH_LOST_EVENT = 'zebbi-auth-lost'
 
 /** PIN ingevoerd door gebruiker — niet in de build, per browser/sessie */
 export function getAccessPin(): string | null {
@@ -15,6 +16,11 @@ export function setAccessPin(pin: string): void {
 
 export function clearAccessPin(): void {
   sessionStorage.removeItem(SESSION_KEY)
+}
+
+export function signalAuthLost(): void {
+  clearAccessPin()
+  window.dispatchEvent(new Event(AUTH_LOST_EVENT))
 }
 
 export function authHeaders(): HeadersInit {

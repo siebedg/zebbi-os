@@ -11,9 +11,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const body = req.body as { pin?: string }
-  if (body?.pin === pin) {
+  if (!body?.pin) {
+    return res.status(200).json({ ok: false, required: true })
+  }
+
+  if (body.pin === pin) {
     return res.status(200).json({ ok: true, required: true })
   }
 
-  return res.status(401).json({ ok: false, error: 'Onjuiste PIN' })
+  return res.status(401).json({ ok: false, error: 'Onjuiste PIN', required: true })
 }

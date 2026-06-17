@@ -9,6 +9,7 @@ import {
   type SyncStatus,
 } from '../lib/sync'
 import { mergeAppState } from '../lib/mergeState'
+import { signalAuthLost } from '../lib/auth'
 import { SEED_WEIGHT_LOG } from '../lib/seedWeight'
 import { entryHasData, mergeByUpdatedAt, patchAllBundledMonths, todayISO, uid } from '../lib/utils'
 
@@ -66,6 +67,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (result.error === 'auth') {
         setSyncStatus('auth')
         setSyncError('PIN vereist of onjuist')
+        signalAuthLost()
       } else if (!result.ok) {
         setSyncStatus('offline')
         setSyncError(result.error ?? 'Cloud niet bereikbaar')
@@ -93,6 +95,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (status === 401) {
       setSyncStatus('auth')
       setSyncError('PIN vereist')
+      signalAuthLost()
       return
     }
     if (!remote) {
@@ -118,11 +121,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const [bundled, remoteResult] = await Promise.all([loadAllBundledMonths(), fetchRemoteState()])
 
       if (remoteResult.status === 401) {
-        if (!cancelled) {
-          setSyncStatus('auth')
-          setReady(true)
-          initDone.current = true
-        }
+        if (!cancelled) signalAuthLost()
         return
       }
 
@@ -165,6 +164,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           if (result.error === 'auth') {
             setSyncStatus('auth')
             setSyncError('PIN vereist')
+            signalAuthLost()
           } else if (!result.ok) {
             setSyncStatus('offline')
             setSyncError(result.error ?? 'Opslaan mislukt — storage niet gekoppeld?')
