@@ -41,20 +41,6 @@ function MonthRow({ row, prev }: { row: MonthSummary; prev?: MonthSummary }) {
 export function TrendView({ entries }: { entries: DailyEntry[] }) {
   const summaries = useMemo(() => buildMonthlySummaries(entries), [entries])
 
-  const headline = useMemo(() => {
-    if (summaries.length < 2) return null
-    const last = summaries[summaries.length - 1]
-    const prev = summaries[summaries.length - 2]
-    const focus = metricDelta(prev.metrics.focus, last.metrics.focus)
-    const dw = metricDelta(prev.metrics.deepWork, last.metrics.deepWork)
-    const tt = metricDelta(prev.metrics.timetable, last.metrics.timetable)
-    const wins = [focus, dw, tt].filter((d) => d.improved === true).length
-    const losses = [focus, dw, tt].filter((d) => d.improved === false).length
-    if (wins > losses) return { tone: 'good' as const, text: `${last.label}: focus, DW of TT omhoog t.o.v. ${prev.label}.` }
-    if (losses > wins) return { tone: 'warn' as const, text: `${last.label}: terugval t.o.v. ${prev.label} — check je systemen.` }
-    return { tone: 'neutral' as const, text: `${last.label}: stabiel t.o.v. ${prev.label}.` }
-  }, [summaries])
-
   if (summaries.length === 0) {
     return (
       <Card className="p-6 text-center text-sm text-[var(--color-muted)]">
@@ -68,20 +54,6 @@ export function TrendView({ entries }: { entries: DailyEntry[] }) {
       <SectionTitle sub="Maandgemiddelden per metric. Kleine Δ = verschil t.o.v. vorige maand.">
         Trend
       </SectionTitle>
-
-      {headline && (
-        <p
-          className={`rounded-md border px-3 py-2 text-sm ${
-            headline.tone === 'good'
-              ? 'border-[var(--color-good)]/30 bg-[var(--color-good)]/10 text-[var(--color-text)]'
-              : headline.tone === 'warn'
-                ? 'border-[var(--color-bad)]/30 bg-[var(--color-bad)]/10 text-[var(--color-text)]'
-                : 'border-[var(--color-border)] bg-[var(--color-surface-overlay)] text-[var(--color-muted)]'
-          }`}
-        >
-          {headline.text}
-        </p>
-      )}
 
       <Card className="overflow-x-auto">
         <table className="w-full min-w-[42rem] border-collapse text-[11px]">
