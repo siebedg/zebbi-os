@@ -16,6 +16,7 @@ import { nl } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { DailyEntry } from '../types'
 import { useTheme } from '../hooks/useTheme'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 import { enrichEntry } from '../lib/sessions'
 import { isValidDateStr } from '../lib/utils'
 import {
@@ -55,6 +56,7 @@ export function MonthView({
 }) {
   const [cursor, setCursor] = useState(() => clampVisibleMonth(new Date()))
   const { theme } = useTheme()
+  const isMobile = useMediaQuery('(max-width: 767px)')
 
   const canGoPrev = isAfter(cursor, FIRST_VISIBLE_MONTH)
   const isMayMemorial = cursor.getMonth() === 4
@@ -75,11 +77,13 @@ export function MonthView({
   }, [cursor])
 
   const monthLabel = format(cursor, 'MMMM yyyy', { locale: nl })
-  const rowH = `calc((100vh - 260px) / ${monthDays.length})`
+  const rowH = `calc((100dvh - 220px) / ${monthDays.length})`
+  const stickyBg = 'bg-[var(--color-surface-overlay)]'
+  const stickyCell = `sticky z-20 ${stickyBg}`
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-3 sm:space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <SectionTitle sub={`${monthDays.length} dagen`}>{monthLabel}</SectionTitle>
         <div className="flex items-center gap-1">
           <button
@@ -107,8 +111,12 @@ export function MonthView({
         </div>
       </div>
 
+      {isMobile && (
+        <p className="text-xs text-[var(--color-muted)] md:hidden">Swipe horizontaal voor alle kolommen →</p>
+      )}
+
       <Card
-        className={`relative overflow-x-auto p-0 ${isMayMemorial ? 'bg-[var(--color-surface)]' : ''}`}
+        className={`relative scroll-touch scrollbar-thin overflow-x-auto p-0 ${isMayMemorial ? 'bg-[var(--color-surface)]' : ''}`}
       >
         {isMayMemorial && (
           <div
@@ -138,8 +146,12 @@ export function MonthView({
         <table className="w-full min-w-[64rem] table-fixed border-collapse text-[10px] leading-tight">
           <thead>
             <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-overlay)] text-left text-[var(--color-muted)]">
-              <th className="w-8 border-r border-[var(--color-border)] px-1 py-2 font-medium">#</th>
-              <th className="w-6 border-r border-[var(--color-border)] px-1 py-2 font-medium">D</th>
+              <th className={`${stickyCell} left-0 w-8 border-r border-[var(--color-border)] px-1 py-2 font-medium`}>
+                #
+              </th>
+              <th className={`${stickyCell} left-8 w-7 border-r border-[var(--color-border)] px-1 py-2 font-medium`}>
+                D
+              </th>
               {MONTH_VIEW_COLUMNS.map((col) => (
                 <th
                   key={col.key}
@@ -163,14 +175,14 @@ export function MonthView({
               return (
                 <tr
                   key={dateStr}
-                  style={{ height: rowH, maxHeight: rowH }}
+                  style={isMobile ? { minHeight: 30 } : { height: rowH, maxHeight: rowH }}
                   onClick={() => onSelectDate?.(dateStr)}
                   className={`border-b border-[var(--color-border)] ${
-                    onSelectDate ? 'cursor-pointer hover:bg-[var(--color-surface-overlay)]' : ''
+                    onSelectDate ? 'cursor-pointer hover:bg-[var(--color-surface-overlay)] active:bg-[var(--color-surface-overlay)]' : ''
                   } ${isToday ? 'bg-[var(--color-accent-soft)]' : ''}`}
                 >
                   <td
-                    className="border-r border-[var(--color-border)] text-center font-mono text-[var(--color-text)]"
+                    className={`${stickyCell} left-0 border-r border-[var(--color-border)] text-center font-mono text-[var(--color-text)] ${isToday ? '!bg-[var(--color-accent-soft)]' : stickyBg}`}
                     style={{
                       background: specialStyle?.bg,
                       opacity: isMayMemorial ? memorialCellOpacity : 1,
@@ -179,7 +191,7 @@ export function MonthView({
                     {getDate(d)}
                   </td>
                   <td
-                    className="border-r border-[var(--color-border)] text-center text-[var(--color-muted)]"
+                    className={`${stickyCell} left-8 border-r border-[var(--color-border)] text-center text-[var(--color-muted)] ${isToday ? '!bg-[var(--color-accent-soft)]' : specialStyle?.bg ? '' : stickyBg}`}
                     style={{
                       background: specialStyle?.bg,
                       opacity: isMayMemorial ? memorialCellOpacity : 1,

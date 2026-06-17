@@ -75,7 +75,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--color-bg)] px-4">
+    <div className="flex min-h-screen items-center justify-center bg-[var(--color-bg)] px-4 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]">
       <Card className="w-full max-w-sm p-6">
         <div className="mb-4 flex items-center gap-2 text-[var(--color-text)]">
           <Lock className="h-5 w-5" />

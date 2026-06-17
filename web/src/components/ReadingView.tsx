@@ -70,7 +70,7 @@ function BookCard({
   }
 
   return (
-    <Card className="p-5">
+    <Card className="p-4 sm:p-5">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
           <h3 className="font-semibold text-[var(--color-text)]">{book.title}</h3>
@@ -197,7 +197,7 @@ export function ReadingView({
         Lezen
       </SectionTitle>
 
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <div className="mb-3 flex items-center gap-2 text-sm font-medium text-[var(--color-text)]">
           <BookOpen className="h-4 w-4" />
           Nieuw boek

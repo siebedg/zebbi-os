@@ -14,9 +14,9 @@ export function Card({ children, className = '' }: { children: ReactNode; classN
 
 export function SectionTitle({ children, sub }: { children: ReactNode; sub?: string }) {
   return (
-    <div className="mb-4">
+    <div className="mb-3 sm:mb-4">
       <h2 className="text-base font-semibold text-[var(--color-text)]">{children}</h2>
-      {sub && <p className="mt-0.5 text-sm text-[var(--color-muted)]">{sub}</p>}
+      {sub && <p className="mt-0.5 text-xs text-[var(--color-muted)] sm:text-sm">{sub}</p>}
     </div>
   )
 }
@@ -37,7 +37,7 @@ export function Btn({
   }
   return (
     <button
-      className={`inline-flex items-center justify-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium transition-colors ${styles[variant]} disabled:opacity-50 ${className}`}
+      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-colors sm:min-h-0 sm:px-3.5 sm:py-2 ${styles[variant]} disabled:opacity-50 ${className}`}
       {...props}
     >
       {children}
@@ -56,7 +56,7 @@ export function Input({
         <span className="mb-1 block text-sm font-medium text-[var(--color-text)]">{label}</span>
       )}
       <input
-        className={`w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20 ${className}`}
+        className={`w-full min-h-11 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-base text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20 sm:min-h-0 sm:py-2 sm:text-sm ${className}`}
         {...props}
       />
     </label>

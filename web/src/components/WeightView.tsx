@@ -69,7 +69,7 @@ export function WeightView({
     <div className="space-y-6">
       <SectionTitle sub="Wekelijkse metingen — opgeslagen in cloud">Gewicht</SectionTitle>
 
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <div className="h-64 w-full">
           {chartData.length < 2 ? (
             <div className="flex h-full items-center justify-center text-sm text-[var(--color-muted)]">
@@ -103,7 +103,7 @@ export function WeightView({
         </div>
       </Card>
 
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <div className="mb-3 flex items-center gap-2 text-sm font-medium text-[var(--color-text)]">
           <Scale className="h-4 w-4" />
           Nieuwe meting

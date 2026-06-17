@@ -274,7 +274,7 @@ export function DailyEntryForm({
 
   return (
     <div className="space-y-4">
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <SectionTitle sub={formatDateNL(date, 'EEEE d MMMM yyyy')}>
             Dagelijkse log
@@ -307,7 +307,7 @@ export function DailyEntryForm({
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="p-5">
+        <Card className="p-4 sm:p-5">
           <div className="mb-3 flex items-center justify-between gap-2">
             <h3 className="text-sm font-medium text-[var(--color-text)]">Slaap</h3>
             {hasAnySleep && (
@@ -351,7 +351,7 @@ export function DailyEntryForm({
           </div>
         </Card>
 
-        <Card className="p-5">
+        <Card className="p-4 sm:p-5">
           <h3 className="mb-3 text-sm font-medium text-[var(--color-text)]">Habits</h3>
           <div className="space-y-2">
             <Toggle
@@ -372,7 +372,7 @@ export function DailyEntryForm({
         </Card>
       </div>
 
-      <Card className={`p-5 ${restDay ? 'opacity-90' : ''}`}>
+      <Card className={`p-4 sm:p-5 ${restDay ? 'opacity-90' : ''}`}>
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-medium text-[var(--color-text)]">Deep work sessions</h3>
           {!restDay && sessions.length < MAX_SESSIONS && (
@@ -464,7 +464,7 @@ export function DailyEntryForm({
         )}
       </Card>
 
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         {restDay ? (
           <div className="space-y-2">
             <p className="text-sm font-medium text-[var(--color-text)]">Timetable score %</p>
@@ -481,10 +481,12 @@ export function DailyEntryForm({
             onChange={(e) => setTimetable(e.target.value ? parseFloat(e.target.value) : '')}
           />
         )}
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <Btn onClick={handleSave}>Opslaan</Btn>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+          <Btn onClick={handleSave} className="w-full sm:w-auto">
+            Opslaan
+          </Btn>
           {canDelete && (
-            <Btn variant="danger" onClick={handleDelete}>
+            <Btn variant="danger" onClick={handleDelete} className="w-full sm:w-auto">
               Verwijder dag
             </Btn>
           )}

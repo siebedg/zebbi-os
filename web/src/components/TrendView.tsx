@@ -22,7 +22,9 @@ function Delta({ improved, text }: { improved: boolean | null; text: string }) {
 function MonthRow({ row, prev }: { row: MonthSummary; prev?: MonthSummary }) {
   return (
     <tr className="border-b border-[var(--color-border)] last:border-0">
-      <td className="px-2 py-2.5 font-medium capitalize text-[var(--color-text)]">{row.label}</td>
+      <td className="sticky left-0 z-10 bg-[var(--color-surface)] px-2 py-2.5 font-medium capitalize text-[var(--color-text)]">
+        {row.label}
+      </td>
       <td className="px-2 py-2.5 text-center text-[var(--color-muted)]">{row.daysLogged}</td>
       {TREND_COLUMNS.map(({ key }) => {
         const m = row.metrics[key]
@@ -55,11 +57,11 @@ export function TrendView({ entries }: { entries: DailyEntry[] }) {
         Trend
       </SectionTitle>
 
-      <Card className="overflow-x-auto">
-        <table className="w-full min-w-[42rem] border-collapse text-[11px]">
+      <Card className="scroll-touch scrollbar-thin overflow-x-auto p-0 sm:p-0">
+        <table className="w-full min-w-[36rem] border-collapse text-[11px] sm:min-w-[42rem]">
           <thead>
             <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-overlay)] text-left text-[var(--color-muted)]">
-              <th className="px-2 py-2 font-medium">Maand</th>
+              <th className="sticky left-0 z-10 bg-[var(--color-surface-overlay)] px-2 py-2 font-medium">Maand</th>
               <th className="w-8 px-2 py-2 text-center font-medium" title="Dagen met data">
                 d
               </th>

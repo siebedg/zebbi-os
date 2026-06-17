@@ -15,13 +15,14 @@ import {
 } from 'recharts'
 import type { DailyEntry } from '../types'
 import { useTheme } from '../hooks/useTheme'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 import { enrichEntry } from '../lib/sessions'
 import { entryHasData, formatChartLabel, isValidDateStr } from '../lib/utils'
 import { Card, SectionTitle } from './ui'
 
 function ChartBox({ children }: { children: React.ReactElement }) {
   return (
-    <div className="h-56 w-full" style={{ minHeight: 224 }}>
+    <div className="h-52 w-full sm:h-56" style={{ minHeight: 208 }}>
       <ResponsiveContainer width="100%" height="100%">
         {children}
       </ResponsiveContainer>
@@ -37,6 +38,11 @@ function normalizeSleepScore(score?: number): number | null {
 
 export function Charts({ entries }: { entries: DailyEntry[] }) {
   const { theme } = useTheme()
+  const isMobile = useMediaQuery('(max-width: 767px)')
+  const chartMargin = isMobile
+    ? { top: 8, right: 4, left: -8, bottom: 0 }
+    : { top: 8, right: 12, left: 0, bottom: 0 }
+  const yAxisWidth = isMobile ? 28 : 32
 
   const chartTheme = useMemo(
     () =>
@@ -97,33 +103,33 @@ export function Charts({ entries }: { entries: DailyEntry[] }) {
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-2">
-      <Card className="p-5">
+    <div className="grid gap-4 sm:gap-6 xl:grid-cols-2">
+      <Card className="p-4 sm:p-5">
         <SectionTitle sub="Slaapuren & slaapscore">Slaap</SectionTitle>
         <ChartBox>
-          <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+          <LineChart data={data} margin={chartMargin}>
             <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" />
-            <XAxis dataKey="label" tick={{ fill: chartTheme.tick, fontSize: 10 }} />
-            <YAxis yAxisId="left" tick={{ fill: chartTheme.tick, fontSize: 10 }} width={32} />
-            <YAxis yAxisId="right" orientation="right" tick={{ fill: chartTheme.tick, fontSize: 10 }} width={32} />
+            <XAxis dataKey="label" tick={{ fill: chartTheme.tick, fontSize: isMobile ? 9 : 10 }} interval="preserveStartEnd" />
+            <YAxis yAxisId="left" tick={{ fill: chartTheme.tick, fontSize: 9 }} width={yAxisWidth} />
+            <YAxis yAxisId="right" orientation="right" tick={{ fill: chartTheme.tick, fontSize: 9 }} width={yAxisWidth} />
             <Tooltip contentStyle={chartTheme.tooltip} />
-            <Legend wrapperStyle={{ fontSize: 11, color: chartTheme.tick }} />
+            {!isMobile && <Legend wrapperStyle={{ fontSize: 11, color: chartTheme.tick }} />}
             <Line yAxisId="left" type="monotone" dataKey="sleepHours" name="Uren" stroke="#2563eb" dot={false} connectNulls />
             <Line yAxisId="right" type="monotone" dataKey="sleepScore" name="Score %" stroke="#16a34a" dot={false} connectNulls />
           </LineChart>
         </ChartBox>
       </Card>
 
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <SectionTitle sub="Worked vs net hours & focus">Deep work</SectionTitle>
         <ChartBox>
-          <AreaChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+          <AreaChart data={data} margin={chartMargin}>
             <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" />
-            <XAxis dataKey="label" tick={{ fill: chartTheme.tick, fontSize: 10 }} />
-            <YAxis yAxisId="hours" tick={{ fill: chartTheme.tick, fontSize: 10 }} width={32} />
-            <YAxis yAxisId="focus" orientation="right" tick={{ fill: chartTheme.tick, fontSize: 10 }} width={32} domain={[0, 100]} />
+            <XAxis dataKey="label" tick={{ fill: chartTheme.tick, fontSize: isMobile ? 9 : 10 }} interval="preserveStartEnd" />
+            <YAxis yAxisId="hours" tick={{ fill: chartTheme.tick, fontSize: 9 }} width={yAxisWidth} />
+            <YAxis yAxisId="focus" orientation="right" tick={{ fill: chartTheme.tick, fontSize: 9 }} width={yAxisWidth} domain={[0, 100]} />
             <Tooltip contentStyle={chartTheme.tooltip} />
-            <Legend wrapperStyle={{ fontSize: 11, color: chartTheme.tick }} />
+            {!isMobile && <Legend wrapperStyle={{ fontSize: 11, color: chartTheme.tick }} />}
             <Area yAxisId="hours" type="monotone" dataKey="totalWorked" name="Worked (u)" stroke="#ca8a04" fill={theme === 'dark' ? '#713f1244' : '#fef9c3'} connectNulls />
             <Area yAxisId="hours" type="monotone" dataKey="totalNet" name="Net (u)" stroke="#16a34a" fill={theme === 'dark' ? '#14532d44' : '#dcfce7'} connectNulls />
             <Area yAxisId="focus" type="monotone" dataKey="avgFocus" name="Focus %" stroke="#2563eb" fill={theme === 'dark' ? '#1e3a8a44' : '#dbeafe'} connectNulls />
@@ -131,26 +137,26 @@ export function Charts({ entries }: { entries: DailyEntry[] }) {
         </ChartBox>
       </Card>
 
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <SectionTitle sub="Meditatie minuten">Habits</SectionTitle>
         <ChartBox>
-          <BarChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+          <BarChart data={data} margin={chartMargin}>
             <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" />
-            <XAxis dataKey="label" tick={{ fill: chartTheme.tick, fontSize: 10 }} />
-            <YAxis tick={{ fill: chartTheme.tick, fontSize: 10 }} width={32} />
+            <XAxis dataKey="label" tick={{ fill: chartTheme.tick, fontSize: isMobile ? 9 : 10 }} interval="preserveStartEnd" />
+            <YAxis tick={{ fill: chartTheme.tick, fontSize: 9 }} width={yAxisWidth} />
             <Tooltip contentStyle={chartTheme.tooltip} />
             <Bar dataKey="meditation" name="Min" fill="#16a34a" radius={[2, 2, 0, 0]} />
           </BarChart>
         </ChartBox>
       </Card>
 
-      <Card className="p-5">
+      <Card className="p-4 sm:p-5">
         <SectionTitle sub="Rooster adherence">Timetable</SectionTitle>
         <ChartBox>
-          <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+          <LineChart data={data} margin={chartMargin}>
             <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" />
-            <XAxis dataKey="label" tick={{ fill: chartTheme.tick, fontSize: 10 }} />
-            <YAxis tick={{ fill: chartTheme.tick, fontSize: 10 }} width={32} domain={[0, 100]} />
+            <XAxis dataKey="label" tick={{ fill: chartTheme.tick, fontSize: isMobile ? 9 : 10 }} interval="preserveStartEnd" />
+            <YAxis tick={{ fill: chartTheme.tick, fontSize: 9 }} width={yAxisWidth} domain={[0, 100]} />
             <Tooltip contentStyle={chartTheme.tooltip} />
             <Line type="monotone" dataKey="timetable" name="TT %" stroke="#ca8a04" dot={false} strokeWidth={2} connectNulls />
           </LineChart>
