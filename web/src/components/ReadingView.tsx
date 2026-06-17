@@ -93,35 +93,27 @@ function BookCard({
     setLogOpen(false)
   }
 
-  const statusColor =
-    stats.status.tone === 'done' || stats.status.tone === 'good'
-      ? 'text-[var(--color-good)]'
-      : stats.status.tone === 'warn'
-        ? 'text-[var(--color-warn)]'
-        : 'text-[var(--color-muted)]'
-
   const yMax = book.pageCount
   const yMin = Math.max(0, stats.start - 5)
 
   return (
     <Card className="overflow-hidden p-0">
-      <div className="px-4 pt-5 pb-2 text-center sm:px-6">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1" />
-          <div className="min-w-0 flex-1">
-            <h3 className="truncate text-base font-semibold text-[var(--color-text)]">{book.title}</h3>
-            <p className="mt-0.5 text-xs text-[var(--color-muted)]">
-              {book.pageCount} pag. · {book.daysToRead} dagen · ~{pagesPerDayTarget(book)} pag/dag
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => onDelete(book.id)}
-            className="shrink-0 rounded p-1.5 text-[var(--color-muted)] hover:text-[var(--color-bad)]"
-            aria-label="Verwijderen"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+      <div className="relative px-4 pt-5 pb-2 text-center sm:px-6">
+        <button
+          type="button"
+          onClick={() => onDelete(book.id)}
+          className="absolute right-3 top-4 rounded p-1.5 text-[var(--color-muted)] hover:text-[var(--color-bad)] sm:right-5"
+          aria-label="Verwijderen"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+        <div className="px-10 sm:px-12">
+          <h3 className="text-balance text-lg font-semibold leading-snug text-[var(--color-text)] sm:text-xl">
+            {book.title}
+          </h3>
+          <p className="mt-1.5 text-xs text-[var(--color-muted)] sm:text-sm">
+            {book.pageCount} pag. · {book.daysToRead} dagen · ~{pagesPerDayTarget(book)} pag/dag
+          </p>
         </div>
 
         <p className="mt-4 text-xs font-medium uppercase tracking-widest text-[var(--color-muted)]">Voortgang</p>
@@ -143,7 +135,6 @@ function BookCard({
             style={{ width: `${stats.pct}%` }}
           />
         </div>
-        <p className={`mt-2 text-sm font-medium ${statusColor}`}>{stats.status.text}</p>
       </div>
 
       <div className="mx-auto grid max-w-sm grid-cols-2 gap-2 px-4 py-3 sm:grid-cols-4">
@@ -238,12 +229,6 @@ function BookCard({
           </ComposedChart>
         </ResponsiveContainer>
       </div>
-
-      <p className="px-4 pb-3 text-center text-[10px] text-[var(--color-muted)]">
-        <span className="inline-block h-0.5 w-4 align-middle" style={{ background: palette.target }} /> doellijn
-        {' · '}
-        <span className="inline-block h-0.5 w-4 align-middle" style={{ background: palette.actual }} /> jouw leeslijn
-      </p>
 
       <div className="border-t border-[var(--color-border)]">
         <button
@@ -376,12 +361,7 @@ export function ReadingView({
 
   return (
     <div className="mx-auto max-w-lg space-y-4">
-      <div className="text-center">
-        <p className="text-xs font-medium uppercase tracking-widest text-[var(--color-muted)]">Lezen</p>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">
-          Oranje = ideale lijn · blauw = jouw voortgang
-        </p>
-      </div>
+      <p className="text-center text-xs font-medium uppercase tracking-widest text-[var(--color-muted)]">Lezen</p>
 
       <Card className="overflow-hidden p-0">
         <button
