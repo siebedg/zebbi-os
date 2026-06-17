@@ -3,14 +3,39 @@ import { BarChart3, BookOpen, CalendarDays, LineChart, Moon, PenLine, Scale, Sun
 import type { SyncStatus } from '../lib/sync'
 import { useTheme } from '../hooks/useTheme'
 
-const TABS = [
+const MAIN_TABS = [
   { path: '/', label: 'Vandaag', icon: PenLine, end: true },
   { path: '/maand', label: 'Maand', icon: CalendarDays, end: false },
   { path: '/trend', label: 'Trend', icon: LineChart, end: false },
   { path: '/grafieken', label: 'Grafieken', icon: BarChart3, end: false },
+] as const
+
+const EXTRA_TABS = [
   { path: '/lezen', label: 'Lezen', icon: BookOpen, end: false },
   { path: '/gewicht', label: 'Gewicht', icon: Scale, end: false },
 ] as const
+
+type TabDef = (typeof MAIN_TABS)[number] | (typeof EXTRA_TABS)[number]
+
+function navLinkClass({ isActive }: { isActive: boolean }, compact?: boolean) {
+  return `flex items-center gap-2 border-b-2 py-2.5 text-sm font-medium whitespace-nowrap transition ${
+    compact ? 'px-2.5' : 'px-3'
+  } ${
+    isActive
+      ? 'border-[var(--color-text)] text-[var(--color-text)]'
+      : 'border-transparent text-[var(--color-muted)] hover:border-[var(--color-border)] hover:text-[var(--color-text)]'
+  }`
+}
+
+function NavTab({ tab, compact }: { tab: TabDef; compact?: boolean }) {
+  const Icon = tab.icon
+  return (
+    <NavLink key={tab.path} to={tab.path} end={tab.end} className={({ isActive }) => navLinkClass({ isActive }, compact)} title={tab.label}>
+      <Icon className="h-4 w-4" />
+      <span className={compact ? 'hidden sm:inline' : undefined}>{tab.label}</span>
+    </NavLink>
+  )
+}
 
 function SyncDot({ status, error }: { status: SyncStatus; error?: string }) {
   const title =
@@ -72,24 +97,17 @@ export function Layout({
             </button>
           </div>
         </div>
-        <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4 sm:px-6">
-          {TABS.map(({ path, label, icon: Icon, end }) => (
-            <NavLink
-              key={path}
-              to={path}
-              end={end}
-              className={({ isActive }) =>
-                `flex items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium whitespace-nowrap transition ${
-                  isActive
-                    ? 'border-[var(--color-text)] text-[var(--color-text)]'
-                    : 'border-transparent text-[var(--color-muted)] hover:border-[var(--color-border)] hover:text-[var(--color-text)]'
-                }`
-              }
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </NavLink>
-          ))}
+        <nav className="mx-auto flex max-w-6xl items-stretch justify-between gap-2 px-4 sm:px-6">
+          <div className="flex min-w-0 gap-1 overflow-x-auto">
+            {MAIN_TABS.map((tab) => (
+              <NavTab key={tab.path} tab={tab} />
+            ))}
+          </div>
+          <div className="flex shrink-0 items-stretch gap-0.5 border-l border-[var(--color-border)] pl-2 sm:pl-3">
+            {EXTRA_TABS.map((tab) => (
+              <NavTab key={tab.path} tab={tab} compact />
+            ))}
+          </div>
         </nav>
       </header>
 
