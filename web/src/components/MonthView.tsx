@@ -152,14 +152,13 @@ export function MonthView({
           </thead>
           <tbody>
             {monthDays.map((dateStr) => {
-              void theme
               const entry = entryMap.get(dateStr) ?? { date: dateStr }
               const d = parseISO(dateStr)
               const isToday = dateStr === format(new Date(), 'yyyy-MM-dd')
               const isVacation = isVacationDay(entry)
               const isRest = isRestDay(entry)
               const specialStyle =
-                isRest || entry.dayType === 'travel' ? getRestStyle() : null
+                isRest || entry.dayType === 'travel' ? getRestStyle(theme) : null
 
               return (
                 <tr
@@ -213,7 +212,7 @@ export function MonthView({
                     }
 
                     const val = getEntryField(entry, col.key)
-                    const style = getCellStyle(col.key, val, entry)
+                    const style = getCellStyle(col.key, val, entry, theme)
                     const display = formatFieldValue(col.key, val, entry)
                     const zone = isVacation ? getVacationZone(col.key) : null
                     const flushBand = zone || DEEP_WORK_FIELDS.has(col.key)

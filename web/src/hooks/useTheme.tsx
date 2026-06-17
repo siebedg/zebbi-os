@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useState, type ReactNode } from 'react'
 import { applyTheme, getStoredTheme, type Theme } from '../lib/theme'
 
 const ThemeContext = createContext<{
@@ -8,14 +8,24 @@ const ThemeContext = createContext<{
 } | null>(null)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => getStoredTheme())
+  const [theme, setThemeState] = useState<Theme>(() => {
+    const t = getStoredTheme()
+    applyTheme(t)
+    return t
+  })
 
-  useEffect(() => {
-    applyTheme(theme)
-  }, [theme])
+  const setTheme = (t: Theme) => {
+    applyTheme(t)
+    setThemeState(t)
+  }
 
-  const setTheme = (t: Theme) => setThemeState(t)
-  const toggleTheme = () => setThemeState((t) => (t === 'light' ? 'dark' : 'light'))
+  const toggleTheme = () => {
+    setThemeState((t) => {
+      const next = t === 'light' ? 'dark' : 'light'
+      applyTheme(next)
+      return next
+    })
+  }
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>{children}</ThemeContext.Provider>

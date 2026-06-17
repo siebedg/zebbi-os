@@ -2,7 +2,7 @@ import type { DailyEntry } from '../types'
 import { SLEEP_SCORE_TRACKED_FROM, VACATION_DATES } from '../types'
 import { enrichEntry } from './sessions'
 import { formatTime12 } from './utils'
-import { isDarkTheme } from './theme'
+import type { Theme } from './theme'
 import { isRestDay, REST_STRIPE_BG, REST_WORK_FIELD_SET } from './restDays'
 
 export type ScoreLevel = 'excellent' | 'good' | 'ok' | 'poor' | 'empty' | 'bool-yes' | 'bool-no'
@@ -37,14 +37,14 @@ export const VACATION_WHITE_STYLE: CellStyle = {
 /** @deprecated use VACATION_BLUE_STYLE */
 export const VACATION_STYLE = VACATION_BLUE_STYLE
 
-function timeNeutralStyle(): CellStyle {
-  return isDarkTheme()
+function timeNeutralStyle(theme: Theme): CellStyle {
+  return theme === 'dark'
     ? { level: 'empty', bg: '#27272a', text: '#a1a1aa' }
     : { level: 'empty', bg: '#f4f4f5', text: '#52525b' }
 }
 
-function deepWorkStyle(): CellStyle {
-  return isDarkTheme()
+function deepWorkStyle(theme: Theme): CellStyle {
+  return theme === 'dark'
     ? { level: 'ok', bg: '#334155', text: '#cbd5e1' }
     : { level: 'ok', bg: '#e2e8f0', text: '#475569' }
 }
@@ -78,14 +78,14 @@ export const VACATION_RED_FIELDS = new Set([
   'timetable',
 ])
 
-export function getRestStyle(): CellStyle {
-  return isDarkTheme()
+export function getRestStyle(theme: Theme): CellStyle {
+  return theme === 'dark'
     ? { level: 'ok', bg: '#27272a', text: '#a1a1aa' }
     : { level: 'ok', bg: '#f4f4f5', text: '#71717a' }
 }
 
-function scoreLevels(): Record<ScoreLevel, CellStyle> {
-  if (isDarkTheme()) {
+function scoreLevels(theme: Theme): Record<ScoreLevel, CellStyle> {
+  if (theme === 'dark') {
     return {
       excellent: { level: 'excellent', bg: '#14532d88', text: '#86efac' },
       good: { level: 'good', bg: '#1e3a8a88', text: '#93c5fd' },
@@ -111,9 +111,9 @@ export function isVacationDay(entry: DailyEntry): boolean {
   return entry.dayType === 'vacation' || VACATION_DATES.includes(entry.date)
 }
 
-export function getRowStyle(entry: DailyEntry): CellStyle | null {
+export function getRowStyle(entry: DailyEntry, theme: Theme): CellStyle | null {
   if (isVacationDay(entry)) return VACATION_BLUE_STYLE
-  if (entry.dayType === 'rest' || entry.dayType === 'travel') return getRestStyle()
+  if (entry.dayType === 'rest' || entry.dayType === 'travel') return getRestStyle(theme)
   return null
 }
 
@@ -131,8 +131,8 @@ export function getVacationZone(field: string): 'blue' | 'white' | 'red' | null 
   return null
 }
 
-export function getCellStyle(field: string, value: unknown, entry?: DailyEntry): CellStyle {
-  const LEVELS = scoreLevels()
+export function getCellStyle(field: string, value: unknown, entry?: DailyEntry, theme: Theme = 'light'): CellStyle {
+  const LEVELS = scoreLevels(theme)
 
   if (entry && isRestDay(entry) && REST_WORK_FIELD_SET.has(field)) {
     return { level: 'good', bg: REST_STRIPE_BG, text: '#ffffff' }
@@ -140,11 +140,11 @@ export function getCellStyle(field: string, value: unknown, entry?: DailyEntry):
 
   if (field === 'wakeTime' || field === 'bedTime') {
     if (entry && isVacationDay(entry)) return VACATION_BLUE_STYLE
-    return timeNeutralStyle()
+    return timeNeutralStyle(theme)
   }
   if (DEEP_WORK_FIELDS.has(field)) {
     if (entry && isVacationDay(entry)) return VACATION_RED_STYLE
-    return deepWorkStyle()
+    return deepWorkStyle(theme)
   }
 
   if (entry && isVacationDay(entry)) {
@@ -154,7 +154,7 @@ export function getCellStyle(field: string, value: unknown, entry?: DailyEntry):
     if (zone === 'red') return VACATION_RED_STYLE
   }
 
-  const rowStyle = entry ? getRowStyle(entry) : null
+  const rowStyle = entry ? getRowStyle(entry, theme) : null
   if (rowStyle && (value == null || value === '')) return rowStyle
 
   if (value == null || value === '') return LEVELS.empty
