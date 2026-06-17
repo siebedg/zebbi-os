@@ -35,6 +35,7 @@ import {
   REST_WORK_FIELDS,
   isRestDay,
 } from '../lib/restDays'
+import { monthColumnAverageValues, monthColumnAverages } from '../lib/monthlyStats'
 import { Card, SectionTitle } from './ui'
 
 const DOW = ['Z', 'M', 'D', 'W', 'D', 'V', 'Z']
@@ -77,9 +78,19 @@ export function MonthView({
   }, [cursor])
 
   const monthLabel = format(cursor, 'MMMM yyyy', { locale: nl })
+  const monthKey = format(cursor, 'yyyy-MM')
   const rowH = `calc((100dvh - 220px) / ${monthDays.length})`
   const stickyBg = 'bg-[var(--color-surface-overlay)]'
   const stickyCell = `sticky z-20 ${stickyBg}`
+
+  const columnAverages = useMemo(
+    () => monthColumnAverages(monthKey, entries),
+    [monthKey, entries],
+  )
+  const columnAvgValues = useMemo(
+    () => monthColumnAverageValues(monthKey, entries),
+    [monthKey, entries],
+  )
 
   return (
     <div className="space-y-3 sm:space-y-4">
@@ -250,6 +261,42 @@ export function MonthView({
               )
             })}
           </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-[var(--color-text)]/20 bg-[var(--color-surface-overlay)]">
+              <td
+                colSpan={2}
+                className={`${stickyCell} left-0 border-r border-[var(--color-border)] px-1 py-2 text-center text-[9px] font-semibold uppercase tracking-wide text-[var(--color-muted)]`}
+              >
+                Gem.
+              </td>
+              {MONTH_VIEW_COLUMNS.map((col) => {
+                const display = columnAverages[col.key] ?? '·'
+                const rawVal = columnAvgValues[col.key]
+                const style =
+                  rawVal != null
+                    ? getCellStyle(col.key, rawVal, undefined, theme)
+                    : { bg: 'transparent', text: 'var(--color-muted)' }
+                const flushBand = DEEP_WORK_FIELDS.has(col.key)
+                return (
+                  <td key={col.key} className={flushBand ? 'p-0' : 'p-px'}>
+                    <div
+                      className={`flex min-h-[18px] items-center justify-center font-semibold tabular-nums ${
+                        flushBand ? 'rounded-none' : 'rounded'
+                      }`}
+                      style={{
+                        background: rawVal != null ? style.bg : undefined,
+                        color: rawVal != null ? style.text : 'var(--color-muted)',
+                        opacity: memorialCellOpacity,
+                      }}
+                      title={`Gem. ${col.label}`}
+                    >
+                      {display}
+                    </div>
+                  </td>
+                )
+              })}
+            </tr>
+          </tfoot>
         </table>
       </Card>
     </div>
