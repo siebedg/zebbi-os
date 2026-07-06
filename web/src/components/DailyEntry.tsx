@@ -23,6 +23,8 @@ import {
   uid,
 } from '../lib/utils'
 import { Card, SectionTitle, Input, Toggle, Btn, HabitChoice, TimeInput12 } from './ui'
+import { FieldVisibilityPanel } from './FieldVisibilityPanel'
+import { useFieldVisibility } from '../hooks/useFieldVisibility'
 
 function initialRestDay(entry?: DailyEntry, date?: string): boolean {
   if (!entry) return isKnownRestDate(date ?? todayISO())
@@ -93,6 +95,7 @@ export function DailyEntryForm({
 }) {
   const date = initial?.date ?? todayISO()
   const bedDateLabel = formatDateNL(bedTargetDate, 'EEE d MMM')
+  const { visibility } = useFieldVisibility()
   const [wakeTime, setWakeTime] = useState(initial?.wakeTime ?? '')
   const [bedTime, setBedTime] = useState(initial?.bedTime ?? '')
   const [sleepScore, setSleepScore] = useState<number | ''>(
@@ -270,7 +273,13 @@ export function DailyEntryForm({
     setSaved(false)
   }
 
-  const hasAnySleep = Boolean(wakeTime || bedTime || sleepScore !== '')
+  const hasAnySleep = Boolean(
+    (visibility.wakeTime && wakeTime) ||
+      (visibility.bedTime && bedTime) ||
+      (visibility.sleepScore && sleepScore !== ''),
+  )
+  const showSleepCard =
+    visibility.wakeTime || visibility.bedTime || visibility.sleepScore || visibility.sleepHours
 
   return (
     <div className="space-y-4">
@@ -306,7 +315,10 @@ export function DailyEntryForm({
         )}
       </Card>
 
+      <FieldVisibilityPanel className="max-w-md" />
+
       <div className="grid gap-4 lg:grid-cols-2">
+        {showSleepCard && (
         <Card className="p-4 sm:p-5">
           <div className="mb-3 flex items-center justify-between gap-2">
             <h3 className="text-sm font-medium text-[var(--color-text)]">Slaap</h3>
@@ -320,13 +332,18 @@ export function DailyEntryForm({
               </button>
             )}
           </div>
-          <p className="mb-3 text-xs text-[var(--color-muted)]">
-            Whoop-stijl: wake van vandaag, bedtijd van {bedDateLabel} (avond).
-          </p>
+          {(visibility.wakeTime || visibility.bedTime) && (
+            <p className="mb-3 text-xs text-[var(--color-muted)]">
+              Whoop-stijl: wake van vandaag, bedtijd van {bedDateLabel} (avond).
+            </p>
+          )}
           <div className="grid gap-2 sm:grid-cols-2">
+            {visibility.wakeTime && (
             <SleepField label="Wake (vandaag)" hasValue={Boolean(wakeTime)} onClear={() => clearSleepField('wake')}>
               <TimeInput12 value={wakeTime} onChange={setWakeTime} />
             </SleepField>
+            )}
+            {visibility.bedTime && (
             <SleepField
               label={`Bed (${bedDateLabel})`}
               hasValue={Boolean(bedTime)}
@@ -334,6 +351,8 @@ export function DailyEntryForm({
             >
               <TimeInput12 value={bedTime} onChange={setBedTime} />
             </SleepField>
+            )}
+            {visibility.sleepScore && (
             <SleepField
               label="Sc%"
               hasValue={sleepScore !== ''}
@@ -348,10 +367,12 @@ export function DailyEntryForm({
                 className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20"
               />
             </SleepField>
+            )}
           </div>
         </Card>
+        )}
 
-        <Card className="p-4 sm:p-5">
+        <Card className={`p-4 sm:p-5 ${!showSleepCard ? 'lg:col-span-2' : ''}`}>
           <h3 className="mb-3 text-sm font-medium text-[var(--color-text)]">Habits</h3>
           <div className="space-y-2">
             <Toggle
@@ -366,7 +387,9 @@ export function DailyEntryForm({
               value={meditation}
               onChange={(e) => setMeditation(e.target.value ? parseFloat(e.target.value) : '')}
             />
-            <HabitChoice label="Gratitude journal" value={gratitude} onChange={setGratitude} />
+            {visibility.gratitude && (
+              <HabitChoice label="Gratitude journal" value={gratitude} onChange={setGratitude} />
+            )}
             <HabitChoice label="Exercise" value={exercise} onChange={setExercise} />
           </div>
         </Card>

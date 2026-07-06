@@ -21,7 +21,6 @@ import { enrichEntry } from '../lib/sessions'
 import { isValidDateStr } from '../lib/utils'
 import {
   DEEP_WORK_FIELDS,
-  MONTH_VIEW_COLUMNS,
   getRestStyle,
   formatFieldValue,
   getCellStyle,
@@ -36,6 +35,9 @@ import {
   isRestDay,
 } from '../lib/restDays'
 import { monthColumnAverageValues, monthColumnAverages } from '../lib/monthlyStats'
+import { filterMonthColumns } from '../lib/fieldVisibility'
+import { useFieldVisibility } from '../hooks/useFieldVisibility'
+import { FieldVisibilityPanel } from './FieldVisibilityPanel'
 import { Card, SectionTitle } from './ui'
 
 const DOW = ['Z', 'M', 'D', 'W', 'D', 'V', 'Z']
@@ -83,6 +85,13 @@ export function MonthView({
   const stickyBg = 'bg-[var(--color-surface-overlay)]'
   const stickyCell = `sticky z-20 ${stickyBg}`
 
+  const { visibility } = useFieldVisibility()
+  const visibleColumns = useMemo(() => filterMonthColumns(visibility), [visibility])
+  const visibleRestWorkFields = useMemo(
+    () => REST_WORK_FIELDS.filter((key) => visibleColumns.some((col) => col.key === key)),
+    [visibleColumns],
+  )
+
   const columnAverages = useMemo(
     () => monthColumnAverages(monthKey, entries),
     [monthKey, entries],
@@ -121,6 +130,8 @@ export function MonthView({
           </button>
         </div>
       </div>
+
+      <FieldVisibilityPanel className="max-w-sm" />
 
       {isMobile && (
         <p className="text-xs text-[var(--color-muted)] md:hidden">Swipe horizontaal voor alle kolommen →</p>
@@ -163,7 +174,7 @@ export function MonthView({
               <th className={`${stickyCell} left-8 w-7 border-r border-[var(--color-border)] px-1 py-2 font-medium`}>
                 D
               </th>
-              {MONTH_VIEW_COLUMNS.map((col) => (
+              {visibleColumns.map((col) => (
                 <th
                   key={col.key}
                   className="px-1 py-2 font-medium"
@@ -210,16 +221,20 @@ export function MonthView({
                   >
                     {DOW[getDay(d)]}
                   </td>
-                  {MONTH_VIEW_COLUMNS.flatMap((col) => {
-                    const restStripeStart = REST_WORK_FIELDS[0]
-                    if (isRest && REST_WORK_FIELD_SET.has(col.key) && col.key !== restStripeStart) {
+                  {visibleColumns.flatMap((col) => {
+                    const restStripeStart = visibleRestWorkFields[0]
+                    if (
+                      isRest &&
+                      REST_WORK_FIELD_SET.has(col.key) &&
+                      col.key !== restStripeStart
+                    ) {
                       return []
                     }
-                    if (isRest && col.key === restStripeStart) {
+                    if (isRest && col.key === restStripeStart && visibleRestWorkFields.length > 0) {
                       return [
                         <td
                           key="rest-work-stripe"
-                          colSpan={REST_WORK_FIELDS.length}
+                          colSpan={visibleRestWorkFields.length}
                           className="p-0"
                         >
                           <div
@@ -269,7 +284,7 @@ export function MonthView({
               >
                 Gem.
               </td>
-              {MONTH_VIEW_COLUMNS.map((col) => {
+              {visibleColumns.map((col) => {
                 const display = columnAverages[col.key] ?? '·'
                 const rawVal = columnAvgValues[col.key]
                 const style =

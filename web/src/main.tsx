@@ -4,10 +4,14 @@ import './index.css'
 import App from './App.tsx'
 import { ThemeProvider } from './hooks/useTheme.tsx'
 
+import { FieldVisibilityProvider } from './hooks/useFieldVisibility.tsx'
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
-      <App />
+      <FieldVisibilityProvider>
+        <App />
+      </FieldVisibilityProvider>
     </ThemeProvider>
   </StrictMode>,
 )
