@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy Policy — Zebbi OS</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+      max-width: 40rem;
+      margin: 2rem auto;
+      padding: 0 1.25rem 3rem;
+      line-height: 1.55;
+      color: #18181b;
+      background: #fafafa;
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+    h2 { font-size: 1.05rem; margin-top: 1.75rem; }
+    p, li { color: #3f3f46; font-size: 0.95rem; }
+    .muted { color: #71717a; font-size: 0.85rem; }
+    a { color: #2563eb; }
+  </style>
+</head>
+<body>
+  <h1>Privacy Policy</h1>
+  <p class="muted">Zebbi OS · Last updated: 17 July 2026</p>
+
+  <p>
+    Zebbi OS (<a href="https://zebbi-os.vercel.app">zebbi-os.vercel.app</a>) is a
+    <strong>personal</strong> daily-log dashboard. It is not a public product for other users.
+  </p>
+
+  <h2>Whoop data</h2>
+  <p>
+    If you connect a WHOOP account, Zebbi OS requests read-only access to sleep data
+    (wake time, bedtime, and sleep performance score) via the official WHOOP OAuth API.
+  </p>
+  <ul>
+    <li>Data is used only to fill your own sleep fields in Zebbi OS.</li>
+    <li>Data is stored in your private cloud database (Upstash Redis) tied to this app.</li>
+    <li>We do not sell, share, or advertise with WHOOP data.</li>
+    <li>You can disconnect WHOOP at any time in the app; OAuth tokens are then deleted.</li>
+  </ul>
+
+  <h2>Other data</h2>
+  <p>
+    Daily logs, reading progress, and weight entries you enter yourself are stored in the same
+    private database and are protected by a PIN you set.
+  </p>
+
+  <h2>Contact</h2>
+  <p>
+    Questions about this policy or WHOOP data access:<br />
+    <strong>siebedg</strong> · via the GitHub account that owns
+    <a href="https://github.com/siebedg/zebbi-os">zebbi-os</a>
+    or the email on that profile.
+  </p>
+
+  <p class="muted">
+    Privacy policy URL for WHOOP app registration:<br />
+    <a href="https://zebbi-os.vercel.app/privacy.html">https://zebbi-os.vercel.app/privacy.html</a>
+  </p>
+</body>
+</html>
