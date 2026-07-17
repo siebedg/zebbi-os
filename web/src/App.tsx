@@ -47,9 +47,6 @@ function EntryPage() {
 
   return (
     <>
-      <div className="mb-4">
-        <WhoopPanel />
-      </div>
       <DailyEntryForm
         key={entryForEdit?.date ?? editDate ?? 'today'}
         initial={entryForEdit}
@@ -121,6 +118,17 @@ function AppShell() {
               onUpsert={upsertWeight}
               onDelete={deleteWeight}
             />
+          }
+        />
+        <Route
+          path="/whoop"
+          element={
+            <div className="mx-auto max-w-lg space-y-4">
+              <p className="text-center text-xs font-medium uppercase tracking-widest text-[var(--color-muted)]">
+                Whoop
+              </p>
+              <WhoopPanel />
+            </div>
           }
         />
         <Route path="*" element={<Navigate to="/" replace />} />

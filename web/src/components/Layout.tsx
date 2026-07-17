@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { BarChart3, BookOpen, CalendarDays, LineChart, Moon, PenLine, Scale, Sun } from 'lucide-react'
+import { BarChart3, BookOpen, CalendarDays, LineChart, Moon, PenLine, Scale, Sun, Watch } from 'lucide-react'
 import type { SyncStatus } from '../lib/sync'
 import { useTheme } from '../hooks/useTheme'
 
@@ -13,6 +13,7 @@ const MAIN_TABS = [
 const EXTRA_TABS = [
   { path: '/lezen', label: 'Lezen', icon: BookOpen, end: false },
   { path: '/gewicht', label: 'Gewicht', icon: Scale, end: false },
+  { path: '/whoop', label: 'Whoop', icon: Watch, end: false },
 ] as const
 
 type TabDef = (typeof MAIN_TABS)[number] | (typeof EXTRA_TABS)[number]

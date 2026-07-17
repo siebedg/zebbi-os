@@ -307,7 +307,7 @@ export async function fetchSleepsSince(startIso: string): Promise<WhoopSleep[]> 
   let nextToken: string | undefined
 
   do {
-    const url = new URL(`${WHOOP_API}/v2/activity/sleep`)
+    const url = new URL(`${WHOOP_API}/developer/v2/activity/sleep`)
     url.searchParams.set('start', startIso)
     url.searchParams.set('limit', '25')
     if (nextToken) url.searchParams.set('nextToken', nextToken)

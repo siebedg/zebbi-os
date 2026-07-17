@@ -27,10 +27,10 @@ export function WhoopPanel() {
     const whoop = params.get('whoop')
     if (whoop === 'connected') {
       setMsg('Whoop verbonden — klik Sync om slaap vanaf 4 jul te laden.')
-      window.history.replaceState({}, '', window.location.pathname)
+      window.history.replaceState({}, '', '/whoop')
     } else if (whoop === 'error') {
       setMsg(`Whoop fout: ${params.get('msg') ?? 'onbekend'}`)
-      window.history.replaceState({}, '', window.location.pathname)
+      window.history.replaceState({}, '', '/whoop')
     }
   }, [reload])
 
