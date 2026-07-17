@@ -9,6 +9,7 @@ import { TrendView } from './components/TrendView'
 import { ReadingView } from './components/ReadingView'
 import { WeightView } from './components/WeightView'
 import { AuthGate } from './components/AuthGate'
+import { WhoopPanel } from './components/WhoopPanel'
 import {
   bedTimeForForm,
   prepareWhoopSleepSave,
@@ -46,6 +47,9 @@ function EntryPage() {
 
   return (
     <>
+      <div className="mb-4">
+        <WhoopPanel />
+      </div>
       <DailyEntryForm
         key={entryForEdit?.date ?? editDate ?? 'today'}
         initial={entryForEdit}
