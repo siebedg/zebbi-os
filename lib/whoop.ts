@@ -1,11 +1,13 @@
 /** Shared Whoop OAuth + sleep sync helpers (used by api/whoop-*.ts). */
 
-export const WHOOP_SYNC_FROM = process.env.WHOOP_SYNC_FROM || '2026-07-04'
+export const WHOOP_SYNC_FROM = (process.env.WHOOP_SYNC_FROM || '2026-07-04').trim()
 export const WHOOP_AUTH_URL = 'https://api.prod.whoop.com/oauth/oauth2/auth'
 export const WHOOP_TOKEN_URL = 'https://api.prod.whoop.com/oauth/oauth2/token'
 export const WHOOP_API = 'https://api.prod.whoop.com'
 export const WHOOP_SCOPES = 'read:sleep offline'
 export const WHOOP_TOKENS_KEY = 'zebbi-os:whoop-tokens'
+export const WHOOP_STATE_PREFIX = 'zebbi-os:whoop-oauth-state:'
+export const CANONICAL_REDIRECT_URI = 'https://zebbi-os.vercel.app/api/whoop-callback'
 
 export type WhoopTokens = {
   access_token: string
@@ -40,17 +42,27 @@ export type SleepPatch = {
   source: 'whoop'
 }
 
-export function whoopConfigured(): boolean {
-  return Boolean(process.env.WHOOP_CLIENT_ID && process.env.WHOOP_CLIENT_SECRET)
+export function whoopClientId(): string {
+  return (process.env.WHOOP_CLIENT_ID || '').trim()
 }
 
+export function whoopClientSecret(): string {
+  return (process.env.WHOOP_CLIENT_SECRET || '').trim()
+}
+
+export function whoopConfigured(): boolean {
+  return Boolean(whoopClientId() && whoopClientSecret())
+}
+
+/** Always prefer the URI registered in the Whoop dashboard. */
 export function whoopRedirectUri(reqHost?: string): string {
-  if (process.env.WHOOP_REDIRECT_URI) return process.env.WHOOP_REDIRECT_URI
-  if (reqHost) {
-    const proto = reqHost.includes('localhost') ? 'http' : 'https'
+  const fromEnv = (process.env.WHOOP_REDIRECT_URI || '').trim()
+  if (fromEnv) return fromEnv.replace(/\/$/, '')
+  if (reqHost?.includes('localhost') || reqHost?.startsWith('127.0.0.1')) {
+    const proto = 'http'
     return `${proto}://${reqHost}/api/whoop-callback`
   }
-  return 'https://zebbi-os.vercel.app/api/whoop-callback'
+  return CANONICAL_REDIRECT_URI
 }
 
 /** Apply timezone_offset like "+02:00" / "-05:00" to an ISO instant → local calendar parts. */
@@ -182,8 +194,8 @@ export function mergeWhoopPatches(
 }
 
 export async function exchangeCode(code: string, redirectUri: string): Promise<WhoopTokens> {
-  const clientId = process.env.WHOOP_CLIENT_ID!
-  const clientSecret = process.env.WHOOP_CLIENT_SECRET!
+  const clientId = whoopClientId()
+  const clientSecret = whoopClientSecret()
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
     code,
@@ -216,8 +228,8 @@ export async function refreshTokens(tokens: WhoopTokens): Promise<WhoopTokens> {
   const body = new URLSearchParams({
     grant_type: 'refresh_token',
     refresh_token: tokens.refresh_token,
-    client_id: process.env.WHOOP_CLIENT_ID!,
-    client_secret: process.env.WHOOP_CLIENT_SECRET!,
+    client_id: whoopClientId(),
+    client_secret: whoopClientSecret(),
     scope: WHOOP_SCOPES,
   })
   const r = await fetch(WHOOP_TOKEN_URL, {
@@ -239,6 +251,26 @@ export async function refreshTokens(tokens: WhoopTokens): Promise<WhoopTokens> {
     scope: data.scope ? String(data.scope) : tokens.scope,
     connected_at: tokens.connected_at,
   }
+}
+
+export async function createOAuthState(): Promise<string> {
+  const state = crypto.randomUUID().replace(/-/g, '')
+  if (process.env.KV_REST_API_URL) {
+    const { kv } = await import('@vercel/kv')
+    await kv.set(`${WHOOP_STATE_PREFIX}${state}`, { createdAt: Date.now() }, { ex: 600 })
+  }
+  return state
+}
+
+export async function consumeOAuthState(state: string | null): Promise<boolean> {
+  if (!state) return false
+  if (!process.env.KV_REST_API_URL) return state.length >= 8
+  const { kv } = await import('@vercel/kv')
+  const key = `${WHOOP_STATE_PREFIX}${state}`
+  const existing = await kv.get(key)
+  if (!existing) return false
+  await kv.del(key)
+  return true
 }
 
 export async function loadTokens(): Promise<WhoopTokens | null> {

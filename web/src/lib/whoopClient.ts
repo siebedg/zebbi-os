@@ -5,6 +5,7 @@ export type WhoopStatus = {
   connected: boolean
   connectedAt: string | null
   syncFrom: string
+  redirectUri?: string
 }
 
 export type WhoopSyncResult = {
@@ -36,6 +37,7 @@ export async function fetchWhoopStatus(): Promise<WhoopStatus> {
     connected: Boolean(data.connected),
     connectedAt: data.connectedAt ?? null,
     syncFrom: data.syncFrom ?? '2026-07-04',
+    redirectUri: data.redirectUri,
   }
 }
 

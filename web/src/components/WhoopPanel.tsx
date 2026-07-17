@@ -90,6 +90,11 @@ export function WhoopPanel() {
                 ? 'Niet verbonden'
                 : 'Nog niet geconfigureerd (WHOOP_CLIENT_ID/SECRET in Vercel)'}
           </p>
+          {status.configured && !status.connected && status.redirectUri && (
+            <p className="mt-1 break-all text-[10px] text-[var(--color-muted)]">
+              Redirect URI (moet exact zo in Whoop): {status.redirectUri}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           {!status.connected && status.configured && (

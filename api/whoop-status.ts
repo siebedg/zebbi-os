@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { authorized, loadTokens, whoopConfigured, WHOOP_SYNC_FROM } from '../lib/whoop'
+import { authorized, loadTokens, whoopConfigured, whoopRedirectUri, WHOOP_SYNC_FROM } from '../lib/whoop'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
@@ -13,5 +13,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     connected: Boolean(tokens?.access_token),
     connectedAt: tokens?.connected_at ?? null,
     syncFrom: WHOOP_SYNC_FROM,
+    redirectUri: whoopRedirectUri(),
   })
 }
