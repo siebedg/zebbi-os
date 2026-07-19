@@ -5,106 +5,78 @@ import type { DailyEntry } from '../types'
 import {
   OSCILLATION_METRICS,
   buildOscillationReport,
-  collectMetricSeries,
   currentMonthKey,
-  monthEntries,
-  type OscillationPoint,
 } from '../lib/oscillation'
 
 const UP = '#5eead4'
 const DOWN = '#f9a8d4'
 const MID = '#7dd3c0'
 
-function OscillationWave({
-  points,
-  low,
-  high,
+/** Fixed decorative sine — always the same shape; data only fills high/low labels. */
+function FixedOscillationWave({
   displayLow,
   displayHigh,
 }: {
-  points: OscillationPoint[]
-  low: number
-  high: number
   displayLow: string
   displayHigh: string
 }) {
   const w = 720
-  const h = 280
-  const padL = 24
-  const padR = 24
-  const padT = 72
-  const padB = 36
+  const h = 300
+  const padL = 28
+  const padR = 28
+  const padT = 78
+  const padB = 40
   const plotW = w - padL - padR
   const plotH = h - padT - padB
+  const midY = padT + plotH / 2
+  const amp = plotH * 0.38
 
-  const vals = points.map((p) => p.value)
-  const dataMin = Math.min(...vals, low)
-  const dataMax = Math.max(...vals, high)
-  const span = Math.max(dataMax - dataMin, 0.001)
-  const yMin = dataMin - span * 0.18
-  const yMax = dataMax + span * 0.18
-  const ySpan = yMax - yMin
+  // Two full cycles, matching the sketch
+  const cycles = 2
+  const steps = 120
+  const pts: { x: number; y: number; phase: number }[] = []
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps
+    const phase = t * cycles * Math.PI * 2
+    const x = padL + t * plotW
+    // Start mid-rise so first peak & trough land cleanly (like the photo)
+    const y = midY - Math.sin(phase) * amp
+    pts.push({ x, y, phase })
+  }
 
-  const xy = points.map((p, i) => {
-    const x = padL + (i / Math.max(points.length - 1, 1)) * plotW
-    const y = padT + (1 - (p.value - yMin) / ySpan) * plotH
-    return { x, y, value: p.value }
-  })
-
-  const midY = padT + (1 - ((low + high) / 2 - yMin) / ySpan) * plotH
-
-  const nearHigh = [...xy]
-    .map((p, i) => ({ i, d: Math.abs(p.value - high) }))
-    .sort((a, b) => a.d - b.d)[0]
-  const nearLow = [...xy]
-    .map((p, i) => ({ i, d: Math.abs(p.value - low) }))
-    .sort((a, b) => a.d - b.d)[0]
-
-  const peak = xy[nearHigh?.i ?? 0]
-  const trough = xy[nearLow?.i ?? 0]
+  // Peak = first crest (phase ≈ π/2), trough = first valley (phase ≈ 3π/2)
+  const peak = pts.reduce((best, p) => (p.y < best.y ? p : best), pts[0])
+  // Prefer the first-cycle peak/trough for callout placement
+  const firstPeak = pts.find((p) => p.phase >= Math.PI / 2 - 0.08 && p.phase <= Math.PI / 2 + 0.08) ?? peak
+  const firstTrough =
+    pts.find((p) => p.phase >= (3 * Math.PI) / 2 - 0.08 && p.phase <= (3 * Math.PI) / 2 + 0.08) ??
+    pts.reduce((best, p) => (p.y > best.y ? p : best), pts[0])
 
   const segments: { d: string; up: boolean }[] = []
-  for (let i = 0; i < xy.length - 1; i++) {
-    const a = xy[i]
-    const b = xy[i + 1]
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i]
+    const b = pts[i + 1]
     const cx = (a.x + b.x) / 2
     segments.push({
-      d: `M ${a.x} ${a.y} C ${cx} ${a.y}, ${cx} ${b.y}, ${b.x} ${b.y}`,
-      up: b.value >= a.value,
+      d: `M ${a.x.toFixed(2)} ${a.y.toFixed(2)} C ${cx.toFixed(2)} ${a.y.toFixed(2)}, ${cx.toFixed(2)} ${b.y.toFixed(2)}, ${b.x.toFixed(2)} ${b.y.toFixed(2)}`,
+      up: b.y <= a.y,
     })
   }
 
-  const boxW = 108
-  const boxH = 40
-  let boxHighX = Math.min(Math.max(peak.x - boxW / 2, 12), w - boxW - 12)
-  let boxLowX = Math.min(Math.max(trough.x - boxW / 2, 12), w - boxW - 12)
-  if (Math.abs(boxHighX - boxLowX) < boxW + 16) {
-    if (peak.x <= trough.x) {
-      boxHighX = Math.max(12, boxLowX - boxW - 16)
-      if (boxHighX < 12) {
-        boxHighX = 12
-        boxLowX = Math.min(w - boxW - 12, boxHighX + boxW + 16)
-      }
-    } else {
-      boxLowX = Math.max(12, boxHighX - boxW - 16)
-      if (boxLowX < 12) {
-        boxLowX = 12
-        boxHighX = Math.min(w - boxW - 12, boxLowX + boxW + 16)
-      }
-    }
-  }
+  const boxW = 112
+  const boxH = 42
+  const boxHighX = Math.min(Math.max(firstPeak.x - boxW / 2, 16), w - boxW - 16)
+  const boxLowX = Math.min(Math.max(firstTrough.x - boxW / 2, 16), w - boxW - 16)
 
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="h-auto w-full" role="img" aria-label="Oscillation">
-      {/* Chart plane */}
       <rect x={padL} y={padT} width={plotW} height={plotH} fill="#ececee" />
-      {Array.from({ length: 10 }).map((_, i) => {
-        const x = padL + ((i + 1) / 11) * plotW
+      {Array.from({ length: 11 }).map((_, i) => {
+        const x = padL + ((i + 1) / 12) * plotW
         return <line key={i} x1={x} y1={padT} x2={x} y2={padT + plotH} stroke="#d4d4d8" strokeWidth={1} />
       })}
       <line x1={padL} y1={padT + plotH} x2={padL + plotW} y2={padT + plotH} stroke="#3f3f46" strokeWidth={1.5} />
 
-      {/* Midline */}
       <line
         x1={padL}
         y1={midY}
@@ -115,7 +87,6 @@ function OscillationWave({
         strokeDasharray="7 6"
       />
 
-      {/* Wave */}
       {segments.map((s, i) => (
         <path
           key={i}
@@ -128,51 +99,37 @@ function OscillationWave({
         />
       ))}
 
-      {/* High point callout */}
+      {/* High point → first peak */}
       <line
-        x1={peak.x}
-        y1={peak.y}
+        x1={firstPeak.x}
+        y1={firstPeak.y}
         x2={boxHighX + boxW / 2}
-        y2={padT - 8}
+        y2={padT - 10}
         stroke="#18181b"
         strokeWidth={1}
       />
-      <rect x={boxHighX} y={10} width={boxW} height={boxH} fill="#fff" stroke="#18181b" strokeWidth={1.5} />
-      <text x={boxHighX + boxW / 2} y={26} textAnchor="middle" fontSize={10} fill="#71717a">
+      <rect x={boxHighX} y={8} width={boxW} height={boxH} fill="#fff" stroke="#18181b" strokeWidth={1.5} />
+      <text x={boxHighX + boxW / 2} y={24} textAnchor="middle" fontSize={10} fill="#71717a">
         High point
       </text>
-      <text
-        x={boxHighX + boxW / 2}
-        y={42}
-        textAnchor="middle"
-        fontSize={14}
-        fontWeight={600}
-        fill="#18181b"
-      >
+      <text x={boxHighX + boxW / 2} y={40} textAnchor="middle" fontSize={14} fontWeight={600} fill="#18181b">
         {displayHigh}
       </text>
 
-      {/* Low point callout */}
+      {/* Low point → first trough */}
       <line
-        x1={trough.x}
-        y1={trough.y}
+        x1={firstTrough.x}
+        y1={firstTrough.y}
         x2={boxLowX + boxW / 2}
-        y2={padT - 8}
+        y2={padT - 10}
         stroke="#18181b"
         strokeWidth={1}
       />
-      <rect x={boxLowX} y={10} width={boxW} height={boxH} fill="#fff" stroke="#18181b" strokeWidth={1.5} />
-      <text x={boxLowX + boxW / 2} y={26} textAnchor="middle" fontSize={10} fill="#71717a">
+      <rect x={boxLowX} y={8} width={boxW} height={boxH} fill="#fff" stroke="#18181b" strokeWidth={1.5} />
+      <text x={boxLowX + boxW / 2} y={24} textAnchor="middle" fontSize={10} fill="#71717a">
         Low point
       </text>
-      <text
-        x={boxLowX + boxW / 2}
-        y={42}
-        textAnchor="middle"
-        fontSize={14}
-        fontWeight={600}
-        fill="#18181b"
-      >
+      <text x={boxLowX + boxW / 2} y={40} textAnchor="middle" fontSize={14} fontWeight={600} fill="#18181b">
         {displayLow}
       </text>
     </svg>
@@ -184,7 +141,6 @@ export function TrendView({ entries }: { entries: DailyEntry[] }) {
   const [metricId, setMetricId] = useState('meditation')
 
   const report = useMemo(() => buildOscillationReport(entries, monthKey), [entries, monthKey])
-  const inMonth = useMemo(() => monthEntries(entries, monthKey), [entries, monthKey])
 
   const available = useMemo(() => {
     const ids = new Set(report.bands.filter((b) => b.low != null && b.high != null).map((b) => b.metric.id))
@@ -193,10 +149,6 @@ export function TrendView({ entries }: { entries: DailyEntry[] }) {
 
   const activeId = available.some((m) => m.id === metricId) ? metricId : available[0]?.id ?? 'meditation'
   const band = report.bands.find((b) => b.metric.id === activeId)
-  const series = useMemo(
-    () => (activeId ? collectMetricSeries(inMonth, activeId) : []),
-    [inMonth, activeId],
-  )
 
   const shiftMonth = (delta: number) => {
     const d = delta < 0 ? subMonths(parseISO(`${monthKey}-01`), 1) : addMonths(parseISO(`${monthKey}-01`), 1)
@@ -257,18 +209,12 @@ export function TrendView({ entries }: { entries: DailyEntry[] }) {
         )}
       </div>
 
-      {!band || band.low == null || band.high == null || series.length < 2 ? (
+      {!band || band.low == null || band.high == null ? (
         <p className="py-16 text-center text-sm text-[var(--color-muted)]">
-          Nog te weinig data voor deze maand.
+          Nog te weinig data voor high/low van deze maand.
         </p>
       ) : (
-        <OscillationWave
-          points={series}
-          low={band.low}
-          high={band.high}
-          displayLow={band.displayLow}
-          displayHigh={band.displayHigh}
-        />
+        <FixedOscillationWave displayLow={band.displayLow} displayHigh={band.displayHigh} />
       )}
     </div>
   )
