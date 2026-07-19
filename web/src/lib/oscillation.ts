@@ -17,7 +17,6 @@ export type OscillationMetric = {
   id: string
   label: string
   unit: OscillationUnit
-  /** Higher low-point = improvement for baseline */
   direction: 'higher' | 'lower'
 }
 
@@ -28,20 +27,18 @@ export type OscillationBand = {
   samples: number
   outliersLow: number
   outliersHigh: number
-  /** Values below low that were ignored as exceptions */
   ignoredBelow: number
   displayLow: string
   displayHigh: string
   hint: string
 }
 
+/** DW4/5 omitted from oscillation pills — keep DW1–3. */
 export const OSCILLATION_METRICS: OscillationMetric[] = [
   { id: 'meditation', label: 'Meditatie', unit: 'min', direction: 'higher' },
   { id: 'deepWork1', label: 'Deep work 1', unit: 'min', direction: 'higher' },
   { id: 'deepWork2', label: 'Deep work 2', unit: 'min', direction: 'higher' },
   { id: 'deepWork3', label: 'Deep work 3', unit: 'min', direction: 'higher' },
-  { id: 'deepWork4', label: 'Deep work 4', unit: 'min', direction: 'higher' },
-  { id: 'deepWork5', label: 'Deep work 5', unit: 'min', direction: 'higher' },
   { id: 'avgFocus', label: 'Focus', unit: '%', direction: 'higher' },
   { id: 'totalWorked', label: 'Totaal deep work', unit: 'uur', direction: 'higher' },
   { id: 'sleepScore', label: 'Sleep score', unit: '%', direction: 'higher' },
@@ -49,10 +46,21 @@ export const OSCILLATION_METRICS: OscillationMetric[] = [
   { id: 'timetable', label: 'Timetable', unit: '%', direction: 'higher' },
 ]
 
-function roundForMetric(id: string, value: number): number {
-  if (id.startsWith('deepWork') || id === 'meditation') return Math.round(value)
-  if (id === 'avgFocus' || id === 'sleepScore' || id === 'timetable') return Math.round(value)
-  if (id === 'totalWorked' || id === 'sleepHours') return Math.round(value * 4) / 4
+/** Max times a rare extreme may appear and still count as exception (not the floor/ceiling). */
+const MAX_EXCEPTION_OCCURRENCES = 2
+
+function quantize(metricId: string, value: number): number {
+  if (metricId.startsWith('deepWork')) {
+    // Bucket so 73/77 both become 75 — matches “75 min low / 2u high”
+    return Math.round(value / 5) * 5
+  }
+  if (metricId === 'meditation') return Math.round(value)
+  if (metricId === 'avgFocus' || metricId === 'sleepScore' || metricId === 'timetable') {
+    return Math.round(value / 5) * 5
+  }
+  if (metricId === 'totalWorked' || metricId === 'sleepHours') {
+    return Math.round(value * 4) / 4
+  }
   return Math.round(value * 10) / 10
 }
 
@@ -70,12 +78,35 @@ function formatValue(value: number, unit: OscillationUnit): string {
   return String(value)
 }
 
+function getDeepWorkMinutes(e: DailyEntry, index0: number): number | null {
+  const sessions = (e.sessions ?? []).filter((s) => s.startTime && s.endTime)
+  if (sessions[index0]) {
+    const mins = sessionDurationMinutes(sessions[index0])
+    if (mins > 0) return mins
+  }
+  // Duration-only sessions (no clock times)
+  const all = e.sessions ?? []
+  const withDuration = all.filter((s) => (s.durationHours ?? 0) > 0 || (s.startTime && s.endTime))
+  if (withDuration[index0]) {
+    const mins = sessionDurationMinutes(withDuration[index0])
+    if (mins > 0) return mins
+  }
+  const legacy = e[`deepWork${index0 + 1}` as keyof DailyEntry]
+  if (typeof legacy === 'number' && legacy > 0) {
+    // Stored as hours in month grid / import
+    return Math.round(legacy * 60)
+  }
+  return null
+}
+
 function getMetricValue(e: DailyEntry, metricId: string): number | null {
   if (isRestDay(e) && metricId.startsWith('deepWork')) return null
   if (isRestDay(e) && (metricId === 'totalWorked' || metricId === 'avgFocus' || metricId === 'timetable')) {
     return null
   }
-  if (metricId === 'meditation') return e.meditation ?? null
+  if (metricId === 'meditation') {
+    return e.meditation != null && e.meditation > 0 ? e.meditation : null
+  }
   if (metricId === 'avgFocus') return e.avgFocus ?? null
   if (metricId === 'timetable') return e.timetable ?? null
   if (metricId === 'sleepHours') return e.sleepHours ?? null
@@ -85,18 +116,11 @@ function getMetricValue(e: DailyEntry, metricId: string): number | null {
   }
   if (metricId === 'totalWorked') {
     const v = e.totalHoursWorked ?? e.totalDeepWork
-    return v ?? null
+    return v != null && v > 0 ? v : null
   }
   const dwMatch = metricId.match(/^deepWork(\d)$/)
   if (dwMatch) {
-    const idx = parseInt(dwMatch[1], 10) - 1
-    const sessions = (e.sessions ?? []).filter((s) => s.startTime && s.endTime)
-    if (sessions[idx]) {
-      const mins = sessionDurationMinutes(sessions[idx])
-      return mins > 0 ? mins : null
-    }
-    const legacy = e[`deepWork${idx + 1}` as keyof DailyEntry] as number | undefined
-    if (legacy != null && legacy > 0) return Math.round(legacy * 60)
+    return getDeepWorkMinutes(e, parseInt(dwMatch[1], 10) - 1)
   }
   return null
 }
@@ -106,7 +130,7 @@ function collectMetricValues(entries: DailyEntry[], metricId: string): number[] 
   for (const raw of entries) {
     if (!isValidDateStr(raw.date)) continue
     const v = getMetricValue(enrichEntry(raw), metricId)
-    if (v != null) values.push(v)
+    if (v != null && Number.isFinite(v) && v > 0) values.push(v)
   }
   return values
 }
@@ -122,7 +146,7 @@ export function collectMetricSeries(entries: DailyEntry[], metricId: string): Os
     points.push({
       date: raw.date,
       label: format(parseISO(raw.date), 'd/M', { locale: nl }),
-      value: roundForMetric(metricId, v),
+      value: quantize(metricId, v),
     })
   }
   return points
@@ -131,14 +155,18 @@ export function collectMetricSeries(entries: DailyEntry[], metricId: string): Os
 export { formatValue as formatOscillationValue }
 
 /**
- * Low/high from oscillation: ignore rare extremes (1–2 exceptions),
- * keep the floor/ceiling that actually repeats.
+ * Low = absolute repeating floor (ignore 1–2× rare dips).
+ * High = repeating ceiling (ignore 1–2× rare spikes).
+ * Matches: “1× of 2× 1 min meditatie is exception; low is 3 min because that repeated.”
  */
 export function oscillationBandFromValues(
   metric: OscillationMetric,
   rawValues: number[],
 ): OscillationBand {
-  const values = rawValues.map((v) => roundForMetric(metric.id, v)).filter((v) => Number.isFinite(v))
+  const values = rawValues
+    .map((v) => quantize(metric.id, v))
+    .filter((v) => Number.isFinite(v) && v > 0)
+
   const empty: OscillationBand = {
     metric,
     low: null,
@@ -151,47 +179,63 @@ export function oscillationBandFromValues(
     displayHigh: '—',
     hint: 'Te weinig data',
   }
-  if (values.length < 3) return empty
+  if (values.length < 2) return empty
 
   const freq = new Map<number, number>()
   for (const v of values) freq.set(v, (freq.get(v) ?? 0) + 1)
 
-  // Must appear at least twice, or ~15% of samples (whichever is higher, capped reasonably)
-  const minCount = Math.max(2, Math.min(4, Math.ceil(values.length * 0.15)))
-  const established = [...freq.entries()]
-    .filter(([, c]) => c >= minCount)
-    .map(([v]) => v)
-    .sort((a, b) => a - b)
+  const uniqueAsc = [...freq.keys()].sort((a, b) => a - b)
 
-  let low: number
-  let high: number
-  let ignoredBelow = 0
-  let outliersHigh = 0
+  /**
+   * Walk from an extreme. Skip values that appear ≤2 times (exceptions),
+   * until we hit a value that appears >2 times (established), or fall back.
+   */
+  function establishedFromEnd(fromLow: boolean): { value: number; skipped: number } {
+    const ordered = fromLow ? uniqueAsc : [...uniqueAsc].reverse()
+    let skipped = 0
 
-  if (established.length === 0) {
-    // Fall back: drop single-occurrence extremes at both ends
+    // 1) Prefer clearly established values (appear 3+)
+    for (const v of ordered) {
+      const c = freq.get(v) ?? 0
+      if (c > MAX_EXCEPTION_OCCURRENCES) return { value: v, skipped }
+      // rare extreme — burn exception budget
+      if (skipped + c <= MAX_EXCEPTION_OCCURRENCES) {
+        skipped += c
+        continue
+      }
+      // exception budget full — this value becomes the floor/ceiling even if rare
+      return { value: v, skipped }
+    }
+
+    // 2) Nothing appeared 3+ times: use values that appear at least twice
+    const twice = uniqueAsc.filter((v) => (freq.get(v) ?? 0) >= 2)
+    if (twice.length > 0) {
+      return { value: fromLow ? twice[0] : twice[twice.length - 1], skipped }
+    }
+
+    // 3) All unique: drop up to 2 samples from this end
     const sorted = [...values].sort((a, b) => a - b)
-    const withoutRareEnds = sorted.filter((v) => (freq.get(v) ?? 0) >= 2)
-    const pool = withoutRareEnds.length >= 2 ? withoutRareEnds : sorted
-    low = pool[0]
-    high = pool[pool.length - 1]
-    ignoredBelow = sorted.filter((v) => v < low).length
-    outliersHigh = sorted.filter((v) => v > high).length
-  } else {
-    low = established[0]
-    high = established[established.length - 1]
-    ignoredBelow = values.filter((v) => v < low).length
-    outliersHigh = values.filter((v) => v > high).length
+    const drop = Math.min(MAX_EXCEPTION_OCCURRENCES, Math.max(0, sorted.length - 1))
+    return {
+      value: fromLow ? sorted[drop] : sorted[sorted.length - 1 - drop],
+      skipped: drop,
+    }
   }
 
-  const hintParts: string[] = []
-  if (ignoredBelow > 0) {
-    hintParts.push(`${ignoredBelow}× onder low genegeerd (exceptions)`)
+  const lowResult = establishedFromEnd(true)
+  const highResult = establishedFromEnd(false)
+  let low = lowResult.value
+  let high = highResult.value
+  if (high < low) {
+    // Degenerate month — use plain min/max after light trim
+    const sorted = [...values].sort((a, b) => a - b)
+    const drop = Math.min(1, Math.max(0, sorted.length - 1))
+    low = sorted[drop]
+    high = sorted[sorted.length - 1 - drop]
   }
-  if (outliersHigh > 0) {
-    hintParts.push(`${outliersHigh}× boven high`)
-  }
-  hintParts.push(`min. ${minCount}× om te tellen`)
+
+  const ignoredBelow = values.filter((v) => v < low).length
+  const outliersHigh = values.filter((v) => v > high).length
 
   return {
     metric,
@@ -203,7 +247,10 @@ export function oscillationBandFromValues(
     ignoredBelow,
     displayLow: formatValue(low, metric.unit),
     displayHigh: formatValue(high, metric.unit),
-    hint: hintParts.join(' · '),
+    hint:
+      ignoredBelow || outliersHigh
+        ? `${ignoredBelow}× onder low · ${outliersHigh}× boven high genegeerd`
+        : 'Geen exceptions',
   }
 }
 
@@ -235,7 +282,7 @@ export function buildOscillationReport(
 
   const bands = OSCILLATION_METRICS.map((metric) =>
     oscillationBandFromValues(metric, collectMetricValues(inMonth, metric.id)),
-  ).filter((b) => b.samples > 0)
+  ).filter((b) => b.low != null && b.high != null)
 
   return {
     monthKey,
