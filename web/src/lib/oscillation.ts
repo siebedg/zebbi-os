@@ -70,57 +70,65 @@ function formatValue(value: number, unit: OscillationUnit): string {
   return String(value)
 }
 
+function getMetricValue(e: DailyEntry, metricId: string): number | null {
+  if (isRestDay(e) && metricId.startsWith('deepWork')) return null
+  if (isRestDay(e) && (metricId === 'totalWorked' || metricId === 'avgFocus' || metricId === 'timetable')) {
+    return null
+  }
+  if (metricId === 'meditation') return e.meditation ?? null
+  if (metricId === 'avgFocus') return e.avgFocus ?? null
+  if (metricId === 'timetable') return e.timetable ?? null
+  if (metricId === 'sleepHours') return e.sleepHours ?? null
+  if (metricId === 'sleepScore') {
+    if (e.sleepScore == null) return null
+    return e.sleepScore <= 1 ? e.sleepScore * 100 : e.sleepScore
+  }
+  if (metricId === 'totalWorked') {
+    const v = e.totalHoursWorked ?? e.totalDeepWork
+    return v ?? null
+  }
+  const dwMatch = metricId.match(/^deepWork(\d)$/)
+  if (dwMatch) {
+    const idx = parseInt(dwMatch[1], 10) - 1
+    const sessions = (e.sessions ?? []).filter((s) => s.startTime && s.endTime)
+    if (sessions[idx]) {
+      const mins = sessionDurationMinutes(sessions[idx])
+      return mins > 0 ? mins : null
+    }
+    const legacy = e[`deepWork${idx + 1}` as keyof DailyEntry] as number | undefined
+    if (legacy != null && legacy > 0) return Math.round(legacy * 60)
+  }
+  return null
+}
+
 function collectMetricValues(entries: DailyEntry[], metricId: string): number[] {
   const values: number[] = []
   for (const raw of entries) {
     if (!isValidDateStr(raw.date)) continue
-    const e = enrichEntry(raw)
-    if (isRestDay(e) && metricId.startsWith('deepWork')) continue
-    if (isRestDay(e) && (metricId === 'totalWorked' || metricId === 'avgFocus' || metricId === 'timetable')) {
-      continue
-    }
-
-    if (metricId === 'meditation' && e.meditation != null) {
-      values.push(e.meditation)
-      continue
-    }
-    if (metricId === 'avgFocus' && e.avgFocus != null) {
-      values.push(e.avgFocus)
-      continue
-    }
-    if (metricId === 'timetable' && e.timetable != null) {
-      values.push(e.timetable)
-      continue
-    }
-    if (metricId === 'sleepHours' && e.sleepHours != null) {
-      values.push(e.sleepHours)
-      continue
-    }
-    if (metricId === 'sleepScore' && e.sleepScore != null) {
-      const pct = e.sleepScore <= 1 ? e.sleepScore * 100 : e.sleepScore
-      values.push(pct)
-      continue
-    }
-    if (metricId === 'totalWorked') {
-      const v = e.totalHoursWorked ?? e.totalDeepWork
-      if (v != null) values.push(v)
-      continue
-    }
-    const dwMatch = metricId.match(/^deepWork(\d)$/)
-    if (dwMatch) {
-      const idx = parseInt(dwMatch[1], 10) - 1
-      const sessions = (e.sessions ?? []).filter((s) => s.startTime && s.endTime)
-      if (sessions[idx]) {
-        const mins = sessionDurationMinutes(sessions[idx])
-        if (mins > 0) values.push(mins)
-      } else {
-        const legacy = e[`deepWork${idx + 1}` as keyof DailyEntry] as number | undefined
-        if (legacy != null && legacy > 0) values.push(Math.round(legacy * 60))
-      }
-    }
+    const v = getMetricValue(enrichEntry(raw), metricId)
+    if (v != null) values.push(v)
   }
   return values
 }
+
+export type OscillationPoint = { date: string; label: string; value: number }
+
+export function collectMetricSeries(entries: DailyEntry[], metricId: string): OscillationPoint[] {
+  const points: OscillationPoint[] = []
+  for (const raw of [...entries].sort((a, b) => a.date.localeCompare(b.date))) {
+    if (!isValidDateStr(raw.date)) continue
+    const v = getMetricValue(enrichEntry(raw), metricId)
+    if (v == null) continue
+    points.push({
+      date: raw.date,
+      label: format(parseISO(raw.date), 'd/M', { locale: nl }),
+      value: roundForMetric(metricId, v),
+    })
+  }
+  return points
+}
+
+export { formatValue as formatOscillationValue }
 
 /**
  * Low/high from oscillation: ignore rare extremes (1–2 exceptions),
