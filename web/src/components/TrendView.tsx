@@ -1,88 +1,126 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { addMonths, format, parseISO, subMonths } from 'date-fns'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { DailyEntry } from '../types'
-import { Card, SectionTitle } from './ui'
 import {
-  TREND_COLUMNS,
-  buildMonthlySummaries,
-  metricDelta,
-  type MonthSummary,
-} from '../lib/monthlyStats'
+  buildOscillationReport,
+  currentMonthKey,
+  type OscillationBand,
+} from '../lib/oscillation'
+import { Card, SectionTitle } from './ui'
 
-function Delta({ improved, text }: { improved: boolean | null; text: string }) {
-  if (!text || text === '·') return null
-  const color =
-    improved === true
-      ? 'text-[var(--color-good)]'
-      : improved === false
-        ? 'text-[var(--color-bad)]'
-        : 'text-[var(--color-muted)]'
-  return <span className={`block text-[9px] font-medium leading-none ${color}`}>{text}</span>
-}
+function BandCard({ band }: { band: OscillationBand }) {
+  const { low, high, metric } = band
+  const span = low != null && high != null && high > low ? high - low : 0
+  const midPct = span > 0 && low != null && high != null ? 50 : 50
 
-function MonthRow({ row, prev }: { row: MonthSummary; prev?: MonthSummary }) {
   return (
-    <tr className="border-b border-[var(--color-border)] last:border-0">
-      <td className="sticky left-0 z-10 bg-[var(--color-surface)] px-2 py-2.5 font-medium capitalize text-[var(--color-text)]">
-        {row.label}
-      </td>
-      <td className="px-2 py-2.5 text-center text-[var(--color-muted)]">{row.daysLogged}</td>
-      {TREND_COLUMNS.map(({ key }) => {
-        const m = row.metrics[key]
-        const d = metricDelta(prev?.metrics[key], m)
-        return (
-          <td key={key} className="px-1.5 py-2.5 text-center">
-            <span className="text-[var(--color-text)]">{m.display}</span>
-            {prev && <Delta improved={d.improved} text={d.text} />}
-          </td>
-        )
-      })}
-    </tr>
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-[var(--color-text)]">{metric.label}</p>
+          <p className="mt-0.5 text-[10px] text-[var(--color-muted)]">{band.samples} metingen</p>
+        </div>
+        <span className="rounded-md bg-[var(--color-surface-overlay)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--color-muted)]">
+          band
+        </span>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="rounded-lg bg-[var(--color-surface-overlay)] px-3 py-2.5 text-center">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-muted)]">Low</p>
+          <p className="mt-1 text-lg font-semibold tabular-nums text-[var(--color-text)]">{band.displayLow}</p>
+          <p className="mt-0.5 text-[10px] text-[var(--color-muted)]">absolute floor</p>
+        </div>
+        <div className="rounded-lg bg-[var(--color-surface-overlay)] px-3 py-2.5 text-center">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-muted)]">High</p>
+          <p className="mt-1 text-lg font-semibold tabular-nums text-[var(--color-text)]">{band.displayHigh}</p>
+          <p className="mt-0.5 text-[10px] text-[var(--color-muted)]">typical top</p>
+        </div>
+      </div>
+
+      {low != null && high != null && (
+        <div className="mt-4">
+          <div className="relative h-2 overflow-hidden rounded-full bg-[var(--color-border)]">
+            <div
+              className="absolute inset-y-0 left-0 rounded-full bg-[var(--color-accent)]/70"
+              style={{ width: `${midPct + 50}%`, maxWidth: '100%' }}
+            />
+          </div>
+          <div className="mt-1.5 flex justify-between text-[10px] tabular-nums text-[var(--color-muted)]">
+            <span>{band.displayLow}</span>
+            <span className="text-[var(--color-text)]/70">oscillation</span>
+            <span>{band.displayHigh}</span>
+          </div>
+        </div>
+      )}
+
+      <p className="mt-3 text-[11px] leading-snug text-[var(--color-muted)]">{band.hint}</p>
+    </div>
   )
 }
 
 export function TrendView({ entries }: { entries: DailyEntry[] }) {
-  const summaries = useMemo(() => buildMonthlySummaries(entries), [entries])
+  const [monthKey, setMonthKey] = useState(() => currentMonthKey())
 
-  if (summaries.length === 0) {
-    return (
-      <Card className="p-6 text-center text-sm text-[var(--color-muted)]">
-        Nog geen maanden met data — log dagen om trends te zien.
-      </Card>
-    )
+  const report = useMemo(() => buildOscillationReport(entries, monthKey), [entries, monthKey])
+
+  const shiftMonth = (delta: number) => {
+    const d = delta < 0 ? subMonths(parseISO(`${monthKey}-01`), 1) : addMonths(parseISO(`${monthKey}-01`), 1)
+    setMonthKey(format(d, 'yyyy-MM'))
   }
 
   return (
-    <div className="space-y-4">
-      <SectionTitle sub="Maandgemiddelden per metric. Kleine Δ = verschil t.o.v. vorige maand.">
-        Trend
-      </SectionTitle>
+    <div className="mx-auto max-w-3xl space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <SectionTitle sub="Low = herhaalde floor (exceptions genegeerd). Verhoog je low om de baseline te tillen.">
+          Oscillation
+        </SectionTitle>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => shiftMonth(-1)}
+            className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 hover:bg-[var(--color-surface-overlay)]"
+            aria-label="Vorige maand"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="min-w-[8.5rem] text-center text-sm font-medium capitalize text-[var(--color-text)]">
+            {report.label}
+          </span>
+          <button
+            type="button"
+            onClick={() => shiftMonth(1)}
+            className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 hover:bg-[var(--color-surface-overlay)]"
+            aria-label="Volgende maand"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
 
-      <Card className="scroll-touch scrollbar-thin overflow-x-auto p-0 sm:p-0">
-        <table className="w-full min-w-[36rem] border-collapse text-[11px] sm:min-w-[42rem]">
-          <thead>
-            <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-overlay)] text-left text-[var(--color-muted)]">
-              <th className="sticky left-0 z-10 bg-[var(--color-surface-overlay)] px-2 py-2 font-medium">Maand</th>
-              <th className="w-8 px-2 py-2 text-center font-medium" title="Dagen met data">
-                d
-              </th>
-              {TREND_COLUMNS.map((c) => (
-                <th key={c.key} className="px-1.5 py-2 text-center font-medium">
-                  {c.short}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {summaries.map((row, i) => (
-              <MonthRow key={row.monthKey} row={row} prev={i > 0 ? summaries[i - 1] : undefined} />
-            ))}
-          </tbody>
-        </table>
+      <Card className="p-4 sm:p-5">
+        <p className="text-sm text-[var(--color-text)]">
+          <span className="font-semibold tabular-nums">{report.daysWithData}</span>
+          <span className="text-[var(--color-muted)]"> / {report.daysInMonth} dagen met data</span>
+        </p>
+        <p className="mt-2 text-xs leading-relaxed text-[var(--color-muted)]">
+          Een low point is je absolute standaard — daar ga je niet onder. Zeldzame dips (1–2×) tellen niet mee.
+          Als low easy aanvoelt, til je hem rustig op i.p.v. wild te oscilleren.
+        </p>
       </Card>
 
-      <p className="text-xs text-[var(--color-muted)]">
-        Wake: eerder = groen. Overige metrics: hoger = groen. Alleen dagen met ingevulde waarden tellen mee.
-      </p>
+      {report.bands.length === 0 ? (
+        <Card className="p-8 text-center text-sm text-[var(--color-muted)]">
+          Nog te weinig data in deze maand voor oscillation bands.
+        </Card>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {report.bands.map((band) => (
+            <BandCard key={band.metric.id} band={band} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

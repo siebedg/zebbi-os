@@ -6,7 +6,7 @@ import { useTheme } from '../hooks/useTheme'
 const MAIN_TABS = [
   { path: '/', label: 'Vandaag', icon: PenLine, end: true },
   { path: '/maand', label: 'Maand', icon: CalendarDays, end: false },
-  { path: '/trend', label: 'Trend', icon: LineChart, end: false },
+  { path: '/trend', label: 'Oscillation', icon: LineChart, end: false },
   { path: '/grafieken', label: 'Grafieken', icon: BarChart3, end: false },
 ] as const
 
@@ -19,10 +19,10 @@ const EXTRA_TABS = [
 type TabDef = (typeof MAIN_TABS)[number] | (typeof EXTRA_TABS)[number]
 
 function navLinkClass({ isActive }: { isActive: boolean }) {
-  return `flex min-h-11 min-w-11 flex-col items-center justify-center gap-0.5 rounded-md border-b-2 px-2 py-1.5 text-xs font-medium transition md:min-h-0 md:min-w-0 md:flex-row md:gap-2 md:rounded-none md:border-b-2 md:px-3 md:py-2.5 md:text-sm ${
+  return `group flex items-center gap-3 rounded-lg px-2.5 py-2.5 text-sm font-medium transition ${
     isActive
-      ? 'border-[var(--color-text)] text-[var(--color-text)] md:bg-transparent'
-      : 'border-transparent text-[var(--color-muted)] hover:bg-[var(--color-surface-overlay)] hover:text-[var(--color-text)] md:hover:bg-transparent'
+      ? 'bg-[var(--color-surface-overlay)] text-[var(--color-text)]'
+      : 'text-[var(--color-muted)] hover:bg-[var(--color-surface-overlay)] hover:text-[var(--color-text)]'
   }`
 }
 
@@ -36,8 +36,10 @@ function NavTab({ tab }: { tab: TabDef }) {
       title={tab.label}
       aria-label={tab.label}
     >
-      <Icon className="h-5 w-5 shrink-0 md:h-4 md:w-4" />
-      <span className="hidden max-w-[4.5rem] truncate md:inline">{tab.label}</span>
+      <Icon className="h-5 w-5 shrink-0" />
+      <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 group-hover/nav:max-w-[9rem] group-hover/nav:opacity-100">
+        {tab.label}
+      </span>
     </NavLink>
   )
 }
@@ -66,7 +68,7 @@ function SyncDot({ status, error }: { status: SyncStatus; error?: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-xs text-[var(--color-muted)]" title={title}>
       <span className={`h-2.5 w-2.5 rounded-full ${color}`} />
-      <span className="hidden max-w-[8rem] truncate sm:inline">
+      <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 group-hover/nav:max-w-[5rem] group-hover/nav:opacity-100">
         {status === 'offline' ? 'Offline' : status === 'auth' ? 'PIN' : status === 'synced' ? 'Sync' : '…'}
       </span>
     </span>
@@ -85,39 +87,87 @@ export function Layout({
   const { theme, toggleTheme } = useTheme()
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)]">
-      <header className="sticky top-0 z-40 border-b border-[var(--color-border)] bg-[var(--color-surface)] pt-[env(safe-area-inset-top)]">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2 sm:px-6 sm:py-3">
-          <h1 className="text-base font-semibold tracking-tight text-[var(--color-text)] sm:text-lg">Zebbi OS</h1>
-          <div className="flex items-center gap-2 sm:gap-3">
+    <div className="min-h-screen bg-[var(--color-bg)] md:flex">
+      {/* Desktop / tablet: left rail */}
+      <aside className="group/nav fixed inset-y-0 left-0 z-40 hidden w-14 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] pt-[env(safe-area-inset-top)] transition-[width] duration-200 hover:w-52 md:flex">
+        <div className="flex h-14 items-center gap-2 overflow-hidden px-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-text)] text-sm font-bold text-[var(--color-bg)]">
+            Z
+          </span>
+          <span className="max-w-0 overflow-hidden whitespace-nowrap text-sm font-semibold opacity-0 transition-all duration-200 group-hover/nav:max-w-[8rem] group-hover/nav:opacity-100">
+            Zebbi OS
+          </span>
+        </div>
+
+        <nav className="flex flex-1 flex-col gap-0.5 overflow-hidden px-2 py-2">
+          {MAIN_TABS.map((tab) => (
+            <NavTab key={tab.path} tab={tab} />
+          ))}
+          <div className="my-2 border-t border-[var(--color-border)]" />
+          {EXTRA_TABS.map((tab) => (
+            <NavTab key={tab.path} tab={tab} />
+          ))}
+        </nav>
+
+        <div className="flex flex-col gap-2 overflow-hidden border-t border-[var(--color-border)] px-3 py-3">
+          <SyncDot status={syncStatus} error={syncError} />
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="flex items-center gap-3 rounded-lg px-2.5 py-2 text-[var(--color-muted)] hover:bg-[var(--color-surface-overlay)] hover:text-[var(--color-text)]"
+            title={theme === 'light' ? 'Donker thema' : 'Licht thema'}
+            aria-label={theme === 'light' ? 'Schakel naar donker thema' : 'Schakel naar licht thema'}
+          >
+            {theme === 'light' ? <Moon className="h-5 w-5 shrink-0" /> : <Sun className="h-5 w-5 shrink-0" />}
+            <span className="max-w-0 overflow-hidden whitespace-nowrap text-sm opacity-0 transition-all duration-200 group-hover/nav:max-w-[6rem] group-hover/nav:opacity-100">
+              Thema
+            </span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Mobile: bottom-ish sticky top compact bar */}
+      <header className="sticky top-0 z-40 border-b border-[var(--color-border)] bg-[var(--color-surface)] pt-[env(safe-area-inset-top)] md:hidden">
+        <div className="flex items-center justify-between gap-2 px-3 py-2">
+          <h1 className="text-base font-semibold tracking-tight text-[var(--color-text)]">Zebbi OS</h1>
+          <div className="flex items-center gap-2">
             <SyncDot status={syncStatus} error={syncError} />
             <button
               type="button"
               onClick={toggleTheme}
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-muted)] transition hover:bg-[var(--color-surface-overlay)] hover:text-[var(--color-text)] sm:min-h-0 sm:min-w-0 sm:p-2"
-              title={theme === 'light' ? 'Donker thema' : 'Licht thema'}
-              aria-label={theme === 'light' ? 'Schakel naar donker thema' : 'Schakel naar licht thema'}
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-[var(--color-border)] text-[var(--color-muted)]"
+              aria-label="Thema"
             >
               {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
             </button>
           </div>
         </div>
-        <nav className="mx-auto flex max-w-6xl items-center justify-between gap-1 border-t border-[var(--color-border)] px-2 py-1 md:border-t-0 md:px-6 md:py-0">
-          <div className="flex flex-1 justify-around gap-0.5 md:justify-start md:gap-1">
-            {MAIN_TABS.map((tab) => (
-              <NavTab key={tab.path} tab={tab} />
-            ))}
-          </div>
-          <div className="flex shrink-0 gap-0.5 border-l border-[var(--color-border)] pl-1 md:pl-3">
-            {EXTRA_TABS.map((tab) => (
-              <NavTab key={tab.path} tab={tab} />
-            ))}
-          </div>
+        <nav className="flex gap-0.5 overflow-x-auto px-2 pb-2 scroll-touch">
+          {[...MAIN_TABS, ...EXTRA_TABS].map((tab) => {
+            const Icon = tab.icon
+            return (
+              <NavLink
+                key={tab.path}
+                to={tab.path}
+                end={tab.end}
+                className={({ isActive }) =>
+                  `flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${
+                    isActive
+                      ? 'bg-[var(--color-text)] text-[var(--color-bg)]'
+                      : 'bg-[var(--color-surface-overlay)] text-[var(--color-muted)]'
+                  }`
+                }
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {tab.label}
+              </NavLink>
+            )
+          })}
         </nav>
       </header>
 
-      <main className="mx-auto max-w-6xl px-3 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-6">
-        {children}
+      <main className="min-w-0 flex-1 px-3 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-6 md:ml-14 md:px-8">
+        <div className="mx-auto max-w-6xl">{children}</div>
       </main>
     </div>
   )

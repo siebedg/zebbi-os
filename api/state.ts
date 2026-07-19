@@ -11,7 +11,7 @@ type StoredState = {
 }
 
 function authorized(req: VercelRequest): boolean {
-  const pin = process.env.ZEEBI_PIN ?? process.env.ZEEBI_SYNC_TOKEN
+  const pin = process.env.ZEEBI_PIN ?? process.env.ZEEBI_SYNC_TOKEN ?? '1249'
   if (!pin) return true
   const header = req.headers.authorization
   return header === `Bearer ${pin}`

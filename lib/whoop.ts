@@ -328,7 +328,7 @@ export async function fetchSleepsSince(startIso: string): Promise<WhoopSleep[]> 
 }
 
 export function authorized(req: { headers: { authorization?: string } }): boolean {
-  const pin = process.env.ZEEBI_PIN ?? process.env.ZEEBI_SYNC_TOKEN
+  const pin = (process.env.ZEEBI_PIN ?? process.env.ZEEBI_SYNC_TOKEN ?? '1249').trim()
   if (!pin) return true
   return req.headers.authorization === `Bearer ${pin}`
 }
