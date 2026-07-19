@@ -8,15 +8,12 @@ import {
   collectMetricSeries,
   currentMonthKey,
   monthEntries,
-  type OscillationBand,
   type OscillationPoint,
 } from '../lib/oscillation'
-import { useTheme } from '../hooks/useTheme'
-import { Card } from './ui'
 
 const UP = '#5eead4'
 const DOWN = '#f9a8d4'
-const MID = '#99f6e4'
+const MID = '#7dd3c0'
 
 function OscillationWave({
   points,
@@ -26,80 +23,45 @@ function OscillationWave({
   displayHigh,
 }: {
   points: OscillationPoint[]
-  low: number | null
-  high: number | null
+  low: number
+  high: number
   displayLow: string
   displayHigh: string
 }) {
-  const { theme } = useTheme()
-  const w = 640
-  const h = 220
-  const padL = 12
-  const padR = 12
-  const padT = 56
-  const padB = 28
+  const w = 720
+  const h = 280
+  const padL = 24
+  const padR = 24
+  const padT = 72
+  const padB = 36
   const plotW = w - padL - padR
   const plotH = h - padT - padB
-
-  if (points.length < 2 || low == null || high == null) {
-    return (
-      <div className="flex h-52 items-center justify-center text-sm text-[var(--color-muted)]">
-        Te weinig punten voor een golf
-      </div>
-    )
-  }
 
   const vals = points.map((p) => p.value)
   const dataMin = Math.min(...vals, low)
   const dataMax = Math.max(...vals, high)
   const span = Math.max(dataMax - dataMin, 0.001)
-  const yMin = dataMin - span * 0.12
-  const yMax = dataMax + span * 0.12
+  const yMin = dataMin - span * 0.18
+  const yMax = dataMax + span * 0.18
   const ySpan = yMax - yMin
 
   const xy = points.map((p, i) => {
-    const x = padL + (i / (points.length - 1)) * plotW
+    const x = padL + (i / Math.max(points.length - 1, 1)) * plotW
     const y = padT + (1 - (p.value - yMin) / ySpan) * plotH
-    return { x, y, ...p }
+    return { x, y, value: p.value }
   })
 
   const midY = padT + (1 - ((low + high) / 2 - yMin) / ySpan) * plotH
-  const lowY = padT + (1 - (low - yMin) / ySpan) * plotH
-  const highY = padT + (1 - (high - yMin) / ySpan) * plotH
 
-  // First clear peak / trough near established high/low for callout anchors
-  let peakIdx = 0
-  let troughIdx = 0
-  let peakScore = -Infinity
-  let troughScore = Infinity
-  xy.forEach((p, i) => {
-    if (p.value >= peakScore) {
-      peakScore = p.value
-      peakIdx = i
-    }
-    if (p.value <= troughScore) {
-      troughScore = p.value
-      troughIdx = i
-    }
-  })
-  // Prefer points close to established high/low
-  const nearHigh = xy
+  const nearHigh = [...xy]
     .map((p, i) => ({ i, d: Math.abs(p.value - high) }))
     .sort((a, b) => a.d - b.d)[0]
-  const nearLow = xy
+  const nearLow = [...xy]
     .map((p, i) => ({ i, d: Math.abs(p.value - low) }))
     .sort((a, b) => a.d - b.d)[0]
-  if (nearHigh) peakIdx = nearHigh.i
-  if (nearLow) troughIdx = nearLow.i
 
-  const peak = xy[peakIdx]
-  const trough = xy[troughIdx]
-
-  const grid = theme === 'dark' ? '#3f3f46' : '#e4e4e7'
-  const axis = theme === 'dark' ? '#a1a1aa' : '#3f3f46'
-  const boxStroke = theme === 'dark' ? '#a1a1aa' : '#18181b'
-  const boxFill = theme === 'dark' ? '#18181b' : '#ffffff'
-  const chartBg = theme === 'dark' ? '#27272a' : '#f4f4f5'
+  const peak = xy[nearHigh?.i ?? 0]
+  const trough = xy[nearLow?.i ?? 0]
 
   const segments: { d: string; up: boolean }[] = []
   for (let i = 0; i < xy.length - 1; i++) {
@@ -112,24 +74,37 @@ function OscillationWave({
     })
   }
 
-  // Keep callout boxes from overlapping
-  let boxHighX = Math.min(Math.max(peak.x - 48, 8), w - 120)
-  let boxLowX = Math.min(Math.max(trough.x - 48, 8), w - 120)
-  if (Math.abs(boxHighX - boxLowX) < 110) {
-    if (boxHighX <= boxLowX) {
-      boxHighX = Math.max(8, boxLowX - 118)
+  const boxW = 108
+  const boxH = 40
+  let boxHighX = Math.min(Math.max(peak.x - boxW / 2, 12), w - boxW - 12)
+  let boxLowX = Math.min(Math.max(trough.x - boxW / 2, 12), w - boxW - 12)
+  if (Math.abs(boxHighX - boxLowX) < boxW + 16) {
+    if (peak.x <= trough.x) {
+      boxHighX = Math.max(12, boxLowX - boxW - 16)
+      if (boxHighX < 12) {
+        boxHighX = 12
+        boxLowX = Math.min(w - boxW - 12, boxHighX + boxW + 16)
+      }
     } else {
-      boxLowX = Math.min(w - 120, boxHighX + 118)
+      boxLowX = Math.max(12, boxHighX - boxW - 16)
+      if (boxLowX < 12) {
+        boxLowX = 12
+        boxHighX = Math.min(w - boxW - 12, boxLowX + boxW + 16)
+      }
     }
   }
 
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="h-auto w-full" role="img" aria-label="Oscillation wave">
-      <rect x={padL} y={padT} width={plotW} height={plotH} fill={chartBg} rx={2} />
-      {Array.from({ length: 8 }).map((_, i) => {
-        const x = padL + ((i + 1) / 9) * plotW
-        return <line key={i} x1={x} y1={padT} x2={x} y2={padT + plotH} stroke={grid} strokeWidth={1} />
+    <svg viewBox={`0 0 ${w} ${h}`} className="h-auto w-full" role="img" aria-label="Oscillation">
+      {/* Chart plane */}
+      <rect x={padL} y={padT} width={plotW} height={plotH} fill="#ececee" />
+      {Array.from({ length: 10 }).map((_, i) => {
+        const x = padL + ((i + 1) / 11) * plotW
+        return <line key={i} x1={x} y1={padT} x2={x} y2={padT + plotH} stroke="#d4d4d8" strokeWidth={1} />
       })}
+      <line x1={padL} y1={padT + plotH} x2={padL + plotW} y2={padT + plotH} stroke="#3f3f46" strokeWidth={1.5} />
+
+      {/* Midline */}
       <line
         x1={padL}
         y1={midY}
@@ -137,87 +112,70 @@ function OscillationWave({
         y2={midY}
         stroke={MID}
         strokeWidth={1.5}
-        strokeDasharray="6 5"
-        opacity={0.9}
-      />
-      <line
-        x1={padL}
-        y1={padT + plotH}
-        x2={padL + plotW}
-        y2={padT + plotH}
-        stroke={axis}
-        strokeWidth={2}
+        strokeDasharray="7 6"
       />
 
+      {/* Wave */}
       {segments.map((s, i) => (
         <path
           key={i}
           d={s.d}
           fill="none"
           stroke={s.up ? UP : DOWN}
-          strokeWidth={3}
+          strokeWidth={3.5}
           strokeLinecap="round"
+          strokeLinejoin="round"
         />
       ))}
 
-      {/* High callout */}
-      <line x1={peak.x} y1={peak.y} x2={boxHighX + 48} y2={42} stroke={boxStroke} strokeWidth={1} />
-      <rect x={boxHighX} y={8} width={96} height={34} fill={boxFill} stroke={boxStroke} strokeWidth={1.5} rx={2} />
-      <text x={boxHighX + 48} y={22} textAnchor="middle" fontSize={9} fill={axis}>
-        High
+      {/* High point callout */}
+      <line
+        x1={peak.x}
+        y1={peak.y}
+        x2={boxHighX + boxW / 2}
+        y2={padT - 8}
+        stroke="#18181b"
+        strokeWidth={1}
+      />
+      <rect x={boxHighX} y={10} width={boxW} height={boxH} fill="#fff" stroke="#18181b" strokeWidth={1.5} />
+      <text x={boxHighX + boxW / 2} y={26} textAnchor="middle" fontSize={10} fill="#71717a">
+        High point
       </text>
-      <text x={boxHighX + 48} y={35} textAnchor="middle" fontSize={12} fontWeight={600} fill={theme === 'dark' ? '#fafafa' : '#18181b'}>
+      <text
+        x={boxHighX + boxW / 2}
+        y={42}
+        textAnchor="middle"
+        fontSize={14}
+        fontWeight={600}
+        fill="#18181b"
+      >
         {displayHigh}
       </text>
-      <circle cx={peak.x} cy={peak.y} r={4} fill={UP} stroke={boxFill} strokeWidth={2} />
 
-      {/* Low callout */}
-      <line x1={trough.x} y1={trough.y} x2={boxLowX + 48} y2={42} stroke={boxStroke} strokeWidth={1} />
-      <rect x={boxLowX} y={8} width={96} height={34} fill={boxFill} stroke={boxStroke} strokeWidth={1.5} rx={2} />
-      <text x={boxLowX + 48} y={22} textAnchor="middle" fontSize={9} fill={axis}>
-        Low
+      {/* Low point callout */}
+      <line
+        x1={trough.x}
+        y1={trough.y}
+        x2={boxLowX + boxW / 2}
+        y2={padT - 8}
+        stroke="#18181b"
+        strokeWidth={1}
+      />
+      <rect x={boxLowX} y={10} width={boxW} height={boxH} fill="#fff" stroke="#18181b" strokeWidth={1.5} />
+      <text x={boxLowX + boxW / 2} y={26} textAnchor="middle" fontSize={10} fill="#71717a">
+        Low point
       </text>
-      <text x={boxLowX + 48} y={35} textAnchor="middle" fontSize={12} fontWeight={600} fill={theme === 'dark' ? '#fafafa' : '#18181b'}>
+      <text
+        x={boxLowX + boxW / 2}
+        y={42}
+        textAnchor="middle"
+        fontSize={14}
+        fontWeight={600}
+        fill="#18181b"
+      >
         {displayLow}
       </text>
-      <circle cx={trough.x} cy={trough.y} r={4} fill={DOWN} stroke={boxFill} strokeWidth={2} />
-
-      {/* Subtle low/high guides */}
-      <line x1={padL} y1={lowY} x2={padL + plotW} y2={lowY} stroke={DOWN} strokeWidth={1} strokeDasharray="2 4" opacity={0.35} />
-      <line x1={padL} y1={highY} x2={padL + plotW} y2={highY} stroke={UP} strokeWidth={1} strokeDasharray="2 4" opacity={0.35} />
     </svg>
-  )
-}
-
-function OscillationSheet({
-  band,
-  points,
-}: {
-  band: OscillationBand
-  points: OscillationPoint[]
-}) {
-  return (
-    <Card className="overflow-hidden p-4 sm:p-5">
-      <h3 className="mb-3 text-base font-medium tracking-tight text-[var(--color-text)] sm:text-lg">
-        Oscillation of my{' '}
-        <span className="border-b border-[var(--color-text)] font-semibold">{band.metric.label.toLowerCase()}</span>
-      </h3>
-      <OscillationWave
-        points={points}
-        low={band.low}
-        high={band.high}
-        displayLow={band.displayLow}
-        displayHigh={band.displayHigh}
-      />
-      <p className="mt-2 text-[11px] text-[var(--color-muted)]">
-        <span className="inline-block h-0.5 w-4 align-middle" style={{ background: UP }} /> omhoog
-        {' · '}
-        <span className="inline-block h-0.5 w-4 align-middle" style={{ background: DOWN }} /> omlaag
-        {' · '}
-        dashed = midden van je band
-        {band.hint ? ` · ${band.hint}` : ''}
-      </p>
-    </Card>
   )
 }
 
@@ -229,7 +187,7 @@ export function TrendView({ entries }: { entries: DailyEntry[] }) {
   const inMonth = useMemo(() => monthEntries(entries, monthKey), [entries, monthKey])
 
   const available = useMemo(() => {
-    const ids = new Set(report.bands.map((b) => b.metric.id))
+    const ids = new Set(report.bands.filter((b) => b.low != null && b.high != null).map((b) => b.metric.id))
     return OSCILLATION_METRICS.filter((m) => ids.has(m.id))
   }, [report.bands])
 
@@ -245,84 +203,72 @@ export function TrendView({ entries }: { entries: DailyEntry[] }) {
     setMonthKey(format(d, 'yyyy-MM'))
   }
 
+  const metricLabel = band?.metric.label.toLowerCase() ?? '…'
+
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => shiftMonth(-1)}
-            className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 hover:bg-[var(--color-surface-overlay)]"
-            aria-label="Vorige maand"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <span className="min-w-[8.5rem] text-center text-sm font-medium capitalize text-[var(--color-text)]">
-            {report.label}
-          </span>
-          <button
-            type="button"
-            onClick={() => shiftMonth(1)}
-            className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 hover:bg-[var(--color-surface-overlay)]"
-            aria-label="Volgende maand"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-        <p className="text-xs text-[var(--color-muted)]">
-          {report.daysWithData}/{report.daysInMonth} dagen · low = absolute floor
-        </p>
+    <div className="mx-auto max-w-3xl space-y-5">
+      <div className="flex items-center justify-center gap-1">
+        <button
+          type="button"
+          onClick={() => shiftMonth(-1)}
+          className="rounded p-1 text-[var(--color-muted)] hover:text-[var(--color-text)]"
+          aria-label="Vorige maand"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <span className="min-w-[7rem] text-center text-xs capitalize text-[var(--color-muted)]">
+          {report.label}
+        </span>
+        <button
+          type="button"
+          onClick={() => shiftMonth(1)}
+          className="rounded p-1 text-[var(--color-muted)] hover:text-[var(--color-text)]"
+          aria-label="Volgende maand"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
       </div>
 
-      {available.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {available.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => setMetricId(m.id)}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                m.id === activeId
-                  ? 'bg-[var(--color-text)] text-[var(--color-bg)]'
-                  : 'bg-[var(--color-surface-overlay)] text-[var(--color-muted)] hover:text-[var(--color-text)]'
-              }`}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-      )}
+      <div>
+        <h2 className="mb-1 font-serif text-xl tracking-tight text-[var(--color-text)] sm:text-2xl">
+          Oscillation of my{' '}
+          <span className="inline-block min-w-[8rem] border-b-2 border-[var(--color-text)] pb-0.5 font-semibold">
+            {metricLabel}
+          </span>
+        </h2>
 
-      {!band ? (
-        <Card className="p-8 text-center text-sm text-[var(--color-muted)]">
-          Nog te weinig data in deze maand voor oscillation.
-        </Card>
+        {available.length > 1 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {available.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setMetricId(m.id)}
+                className={`rounded px-2 py-1 text-[11px] transition ${
+                  m.id === activeId
+                    ? 'bg-[var(--color-text)] text-[var(--color-bg)]'
+                    : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {!band || band.low == null || band.high == null || series.length < 2 ? (
+        <p className="py-16 text-center text-sm text-[var(--color-muted)]">
+          Nog te weinig data voor deze maand.
+        </p>
       ) : (
-        <OscillationSheet band={band} points={series} />
-      )}
-
-      {report.bands.length > 1 && (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {report.bands.map((b) => (
-            <button
-              key={b.metric.id}
-              type="button"
-              onClick={() => setMetricId(b.metric.id)}
-              className={`rounded-lg border px-3 py-2.5 text-left transition ${
-                b.metric.id === activeId
-                  ? 'border-[var(--color-text)] bg-[var(--color-surface)]'
-                  : 'border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-overlay)]'
-              }`}
-            >
-              <p className="text-[11px] text-[var(--color-muted)]">{b.metric.label}</p>
-              <p className="mt-0.5 text-xs font-semibold tabular-nums text-[var(--color-text)]">
-                {b.displayLow}
-                <span className="font-normal text-[var(--color-muted)]"> → </span>
-                {b.displayHigh}
-              </p>
-            </button>
-          ))}
-        </div>
+        <OscillationWave
+          points={series}
+          low={band.low}
+          high={band.high}
+          displayLow={band.displayLow}
+          displayHigh={band.displayHigh}
+        />
       )}
     </div>
   )
