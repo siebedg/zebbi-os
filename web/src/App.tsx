@@ -55,7 +55,7 @@ function EntryPage() {
           const { upserts, deleteDates } = prepareWhoopSleepSave(e, bedTargetDate, getDailyByDate)
           for (const row of upserts) upsertDaily(row)
           for (const d of deleteDates) deleteDaily(d)
-          navigate(editDate ? '/maand' : '/')
+          navigate(editDate ? '/maand' : '/vandaag')
         }}
         onDelete={(d) => {
           deleteDaily(d)
@@ -87,15 +87,15 @@ function MonthPage({ entries }: { entries: import('./types').DailyEntry[] }) {
 }
 
 function AppShell() {
-  const { ready, state, syncStatus, syncError, saveReadingBook, deleteReadingBook, upsertWeight, deleteWeight } =
-    useStore()
+  const { ready, state, saveReadingBook, deleteReadingBook, upsertWeight, deleteWeight } = useStore()
 
   if (!ready) return <Loading />
 
   return (
-    <Layout syncStatus={syncStatus} syncError={syncError}>
+    <Layout>
       <Routes>
-        <Route path="/" element={<EntryPage />} />
+        <Route path="/" element={<Navigate to="/maand" replace />} />
+        <Route path="/vandaag" element={<EntryPage />} />
         <Route path="/dag/:date" element={<EntryPage />} />
         <Route path="/maand" element={<MonthPage entries={state.dailyLog} />} />
         <Route path="/grafieken" element={<Charts entries={state.dailyLog} />} />
@@ -131,7 +131,7 @@ function AppShell() {
             </div>
           }
         />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/maand" replace />} />
       </Routes>
     </Layout>
   )

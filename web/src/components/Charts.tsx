@@ -17,9 +17,9 @@ import { enrichEntry } from '../lib/sessions'
 import { entryHasData, formatChartLabel, isValidDateStr } from '../lib/utils'
 import { Card, SectionTitle } from './ui'
 
-function ChartBox({ children, tall }: { children: React.ReactElement; tall?: boolean }) {
+function ChartBox({ children }: { children: React.ReactElement }) {
   return (
-    <div className={`w-full ${tall ? 'h-64 sm:h-72' : 'h-56 sm:h-64'}`} style={{ minHeight: tall ? 256 : 224 }}>
+    <div className="h-48 w-full sm:h-52" style={{ minHeight: 192 }}>
       <ResponsiveContainer width="100%" height="100%">
         {children}
       </ResponsiveContainer>
@@ -97,41 +97,41 @@ export function Charts({ entries }: { entries: DailyEntry[] }) {
   const tick = { fill: chartTheme.tick, fontSize: isMobile ? 10 : 11 }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5">
+    <div className="mx-auto max-w-6xl space-y-4">
       <SectionTitle sub="Laatste ~45 dagen · één metric per grafiek">Grafieken</SectionTitle>
 
-      <Card className="p-4 sm:p-5">
-        <p className="mb-1 text-sm font-semibold text-[var(--color-text)]">Sleep score</p>
-        <p className="mb-3 text-xs text-[var(--color-muted)]">Whoop / handmatig · %</p>
-        <ChartBox tall>
-          <AreaChart data={data} margin={chartMargin}>
-            <CartesianGrid stroke={chartTheme.grid} vertical={false} />
-            <XAxis dataKey="label" tick={tick} interval="preserveStartEnd" minTickGap={28} axisLine={false} tickLine={false} />
-            <YAxis domain={[40, 100]} tick={tick} width={yAxisWidth} axisLine={false} tickLine={false} />
-            <Tooltip contentStyle={chartTheme.tooltip} formatter={(v: number) => [`${v}%`, 'Score']} />
-            <Area type="monotone" dataKey="sleepScore" stroke="#16a34a" fill={theme === 'dark' ? '#14532d55' : '#dcfce7'} strokeWidth={2.5} connectNulls dot={false} />
-          </AreaChart>
-        </ChartBox>
-      </Card>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <Card className="p-3.5 sm:p-4">
+          <p className="mb-0.5 text-sm font-semibold text-[var(--color-text)]">Sleep score</p>
+          <p className="mb-2 text-xs text-[var(--color-muted)]">Whoop / handmatig · %</p>
+          <ChartBox>
+            <AreaChart data={data} margin={chartMargin}>
+              <CartesianGrid stroke={chartTheme.grid} vertical={false} />
+              <XAxis dataKey="label" tick={tick} interval="preserveStartEnd" minTickGap={24} axisLine={false} tickLine={false} />
+              <YAxis domain={[40, 100]} tick={tick} width={yAxisWidth} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={chartTheme.tooltip} formatter={(v: number) => [`${v}%`, 'Score']} />
+              <Area type="monotone" dataKey="sleepScore" stroke="#16a34a" fill={theme === 'dark' ? '#14532d55' : '#dcfce7'} strokeWidth={2} connectNulls dot={false} />
+            </AreaChart>
+          </ChartBox>
+        </Card>
 
-      <Card className="p-4 sm:p-5">
-        <p className="mb-1 text-sm font-semibold text-[var(--color-text)]">Deep work</p>
-        <p className="mb-3 text-xs text-[var(--color-muted)]">Totaal uren per dag</p>
-        <ChartBox tall>
-          <BarChart data={data} margin={chartMargin}>
-            <CartesianGrid stroke={chartTheme.grid} vertical={false} />
-            <XAxis dataKey="label" tick={tick} interval="preserveStartEnd" minTickGap={28} axisLine={false} tickLine={false} />
-            <YAxis tick={tick} width={yAxisWidth} axisLine={false} tickLine={false} />
-            <Tooltip contentStyle={chartTheme.tooltip} formatter={(v: number) => [`${v}u`, 'Worked']} />
-            <Bar dataKey="totalWorked" fill="#ca8a04" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ChartBox>
-      </Card>
+        <Card className="p-3.5 sm:p-4">
+          <p className="mb-0.5 text-sm font-semibold text-[var(--color-text)]">Deep work</p>
+          <p className="mb-2 text-xs text-[var(--color-muted)]">Totaal uren per dag</p>
+          <ChartBox>
+            <BarChart data={data} margin={chartMargin}>
+              <CartesianGrid stroke={chartTheme.grid} vertical={false} />
+              <XAxis dataKey="label" tick={tick} interval="preserveStartEnd" minTickGap={24} axisLine={false} tickLine={false} />
+              <YAxis tick={tick} width={yAxisWidth} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={chartTheme.tooltip} formatter={(v: number) => [`${v}u`, 'Worked']} />
+              <Bar dataKey="totalWorked" fill="#ca8a04" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ChartBox>
+        </Card>
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Card className="p-4 sm:p-5">
-          <p className="mb-1 text-sm font-semibold text-[var(--color-text)]">Focus</p>
-          <p className="mb-3 text-xs text-[var(--color-muted)]">Gemiddelde focus %</p>
+        <Card className="p-3.5 sm:p-4">
+          <p className="mb-0.5 text-sm font-semibold text-[var(--color-text)]">Focus</p>
+          <p className="mb-2 text-xs text-[var(--color-muted)]">Gemiddelde focus %</p>
           <ChartBox>
             <AreaChart data={data} margin={chartMargin}>
               <CartesianGrid stroke={chartTheme.grid} vertical={false} />
@@ -143,9 +143,9 @@ export function Charts({ entries }: { entries: DailyEntry[] }) {
           </ChartBox>
         </Card>
 
-        <Card className="p-4 sm:p-5">
-          <p className="mb-1 text-sm font-semibold text-[var(--color-text)]">Meditatie</p>
-          <p className="mb-3 text-xs text-[var(--color-muted)]">Minuten per dag</p>
+        <Card className="p-3.5 sm:p-4">
+          <p className="mb-0.5 text-sm font-semibold text-[var(--color-text)]">Meditatie</p>
+          <p className="mb-2 text-xs text-[var(--color-muted)]">Minuten per dag</p>
           <ChartBox>
             <BarChart data={data} margin={chartMargin}>
               <CartesianGrid stroke={chartTheme.grid} vertical={false} />
@@ -156,21 +156,21 @@ export function Charts({ entries }: { entries: DailyEntry[] }) {
             </BarChart>
           </ChartBox>
         </Card>
-      </div>
 
-      <Card className="p-4 sm:p-5">
-        <p className="mb-1 text-sm font-semibold text-[var(--color-text)]">Timetable</p>
-        <p className="mb-3 text-xs text-[var(--color-muted)]">Adherence %</p>
-        <ChartBox>
-          <AreaChart data={data} margin={chartMargin}>
-            <CartesianGrid stroke={chartTheme.grid} vertical={false} />
-            <XAxis dataKey="label" tick={tick} interval="preserveStartEnd" minTickGap={28} axisLine={false} tickLine={false} />
-            <YAxis domain={[0, 100]} tick={tick} width={yAxisWidth} axisLine={false} tickLine={false} />
-            <Tooltip contentStyle={chartTheme.tooltip} formatter={(v: number) => [`${v}%`, 'TT']} />
-            <Area type="monotone" dataKey="timetable" stroke="#ca8a04" fill={theme === 'dark' ? '#713f1244' : '#fef9c3'} strokeWidth={2} connectNulls />
-          </AreaChart>
-        </ChartBox>
-      </Card>
+        <Card className="p-3.5 sm:p-4 sm:col-span-2 xl:col-span-1">
+          <p className="mb-0.5 text-sm font-semibold text-[var(--color-text)]">Timetable</p>
+          <p className="mb-2 text-xs text-[var(--color-muted)]">Adherence %</p>
+          <ChartBox>
+            <AreaChart data={data} margin={chartMargin}>
+              <CartesianGrid stroke={chartTheme.grid} vertical={false} />
+              <XAxis dataKey="label" tick={tick} interval="preserveStartEnd" minTickGap={24} axisLine={false} tickLine={false} />
+              <YAxis domain={[0, 100]} tick={tick} width={yAxisWidth} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={chartTheme.tooltip} formatter={(v: number) => [`${v}%`, 'TT']} />
+              <Area type="monotone" dataKey="timetable" stroke="#ca8a04" fill={theme === 'dark' ? '#713f1244' : '#fef9c3'} strokeWidth={2} connectNulls />
+            </AreaChart>
+          </ChartBox>
+        </Card>
+      </div>
     </div>
   )
 }
