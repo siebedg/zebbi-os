@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { FileText, Heart, Upload } from 'lucide-react'
+import { ChevronDown, FileText, Heart, Upload } from 'lucide-react'
 import type { DailyEntry, DeepWorkSession } from '../types'
 import { MAX_SESSIONS } from '../types'
 import {
@@ -115,6 +115,8 @@ export function DailyEntryForm({
   const [showPaste, setShowPaste] = useState(false)
   const [saved, setSaved] = useState(false)
   const [parseMsg, setParseMsg] = useState<string | null>(null)
+  /** Collapsed deep-work session ids */
+  const [collapsedDw, setCollapsedDw] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
     setWakeTime(initial?.wakeTime ?? '')
@@ -134,6 +136,7 @@ export function DailyEntryForm({
     setRestDay(initialRestDay(initial, initial?.date ?? date))
     setPasteText('')
     setParseMsg(null)
+    setCollapsedDw(new Set())
   }, [initial, date])
 
   const setRestDayMode = (on: boolean) => {
@@ -164,6 +167,21 @@ export function DailyEntryForm({
 
   const removeSession = (id: string) => {
     setSessions((list) => (list.length <= 1 ? list : list.filter((s) => s.id !== id)))
+    setCollapsedDw((prev) => {
+      if (!prev.has(id)) return prev
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
+  }
+
+  const toggleDwCollapsed = (id: string) => {
+    setCollapsedDw((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   }
 
   const applyParsed = () => {
@@ -282,11 +300,11 @@ export function DailyEntryForm({
     visibility.wakeTime || visibility.bedTime || visibility.sleepScore || visibility.sleepHours
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
-      <Card className="p-5 sm:p-6">
+    <div className="space-y-4">
+      <Card className="p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <SectionTitle sub={formatDateNL(date, 'EEEE d MMMM yyyy')}>
-            {date === todayISO() ? 'Vandaag' : 'Dagelijkse log'}
+            Dagelijkse log
           </SectionTitle>
           <Btn variant="ghost" onClick={() => setShowPaste(!showPaste)} className="!py-2 !text-xs">
             <FileText className="h-3.5 w-3.5" />
@@ -295,13 +313,13 @@ export function DailyEntryForm({
         </div>
 
         {showPaste && (
-          <div className="mt-4 space-y-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-overlay)] p-4">
+          <div className="mt-4 space-y-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-overlay)] p-4">
             <p className="text-sm text-[var(--color-muted)]">
               Elk blok = één deep work (DW1, DW2, …). Formaat per blok:{' '}
               <code>8:00 --&gt; 9:30</code> en <code>85%</code>, gescheiden door een lege regel.
             </p>
             <textarea
-              className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 font-mono text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20"
+              className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 font-mono text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20"
               rows={8}
               placeholder={`8:00 --> 9:30\n85%\n\n\n10:43 --> 11:43\n55%`}
               value={pasteText}
@@ -319,9 +337,9 @@ export function DailyEntryForm({
 
       <div className="grid gap-4 lg:grid-cols-2">
         {showSleepCard && (
-        <Card className="p-5 sm:p-6">
-          <div className="mb-4 flex items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-[var(--color-text)]">Slaap</h3>
+        <Card className="p-4 sm:p-5">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h3 className="text-sm font-medium text-[var(--color-text)]">Slaap</h3>
             {hasAnySleep && (
               <button
                 type="button"
@@ -337,7 +355,7 @@ export function DailyEntryForm({
               Whoop-stijl: wake van vandaag, bedtijd van {bedDateLabel} (avond).
             </p>
           )}
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-2">
             {visibility.wakeTime && (
             <SleepField label="Wake (vandaag)" hasValue={Boolean(wakeTime)} onClear={() => clearSleepField('wake')}>
               <TimeInput12 value={wakeTime} onChange={setWakeTime} />
@@ -372,9 +390,9 @@ export function DailyEntryForm({
         </Card>
         )}
 
-        <Card className={`p-5 sm:p-6 ${!showSleepCard ? 'lg:col-span-2' : ''}`}>
-          <h3 className="mb-4 text-sm font-semibold text-[var(--color-text)]">Habits</h3>
-          <div className="space-y-3">
+        <Card className={`p-4 sm:p-5 ${!showSleepCard ? 'lg:col-span-2' : ''}`}>
+          <h3 className="mb-3 text-sm font-medium text-[var(--color-text)]">Habits</h3>
+          <div className="space-y-2">
             <Toggle
               label="Rustdag (geen werk / timetable)"
               checked={restDay}
@@ -395,14 +413,14 @@ export function DailyEntryForm({
         </Card>
       </div>
 
-      <Card className={`p-5 sm:p-6 ${restDay ? 'opacity-90' : ''}`}>
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-[var(--color-text)]">Deep work sessions</h3>
+      <Card className={`p-4 sm:p-5 ${restDay ? 'opacity-90' : ''}`}>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-medium text-[var(--color-text)]">Deep work sessions</h3>
           {!restDay && sessions.length < MAX_SESSIONS && (
             <button
               type="button"
               onClick={addSession}
-              className="text-xs font-medium text-[var(--color-accent)] hover:underline"
+              className="text-xs text-[var(--color-accent)] hover:underline"
             >
               + sessie
             </button>
@@ -418,85 +436,118 @@ export function DailyEntryForm({
           </div>
         ) : (
           <div className="space-y-3">
-            {sessions.map((s, i) => (
-              <div
-                key={s.id}
-                className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-overlay)] p-3.5 sm:p-4"
-              >
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--color-text)] text-[11px] font-semibold text-[var(--color-bg)]">
-                      {i + 1}
-                    </span>
-                    <span className="text-sm font-medium text-[var(--color-text)]">Deep work {i + 1}</span>
-                  </div>
-                  <span className="text-xs tabular-nums text-[var(--color-muted)]">
-                    {s.startTime && s.endTime
-                      ? `${sessionDurationHours(s).toFixed(2)}u`
-                      : s.durationHours != null
-                        ? `${s.durationHours.toFixed(2)}u`
-                        : '—'}
-                  </span>
-                </div>
-                <div className="grid gap-2.5 sm:grid-cols-3">
-                  <label className="block">
-                    <span className="mb-1 block text-sm font-medium text-[var(--color-text)]">Start</span>
-                    <TimeInput12
-                      value={s.startTime}
-                      onChange={(v) => updateSession(s.id, { startTime: v })}
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="mb-1 block text-sm font-medium text-[var(--color-text)]">Einde</span>
-                    <TimeInput12
-                      value={s.endTime}
-                      onChange={(v) => updateSession(s.id, { endTime: v })}
-                    />
-                  </label>
-                  <Input
-                    label="Focus %"
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={s.focusPercent}
-                    onChange={(e) =>
-                      updateSession(s.id, { focusPercent: parseInt(e.target.value, 10) || 0 })
-                    }
-                  />
-                </div>
-                {sessions.length > 1 && (
+            {sessions.map((s, i) => {
+              const collapsed = collapsedDw.has(s.id)
+              const durationLabel =
+                s.startTime && s.endTime
+                  ? `${sessionDurationHours(s).toFixed(2)}u`
+                  : s.durationHours != null
+                    ? `${s.durationHours.toFixed(2)}u`
+                    : '—'
+              const rangeLabel =
+                s.startTime && s.endTime
+                  ? `${s.startTime} → ${s.endTime}`
+                  : collapsed
+                    ? 'Leeg'
+                    : null
+
+              return (
+                <div
+                  key={s.id}
+                  className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-overlay)] p-3"
+                >
                   <button
                     type="button"
-                    onClick={() => removeSession(s.id)}
-                    className="mt-2.5 text-xs text-[var(--color-bad)] hover:underline"
+                    onClick={() => toggleDwCollapsed(s.id)}
+                    className="flex w-full items-center justify-between gap-2 text-left"
+                    aria-expanded={!collapsed}
                   >
-                    Verwijder
+                    <span className="flex min-w-0 items-center gap-2">
+                      <ChevronDown
+                        className={`h-4 w-4 shrink-0 text-[var(--color-muted)] transition ${
+                          collapsed ? '-rotate-90' : ''
+                        }`}
+                      />
+                      <span className="text-sm font-medium text-[var(--color-text)]">
+                        Deep work {i + 1}
+                      </span>
+                      {collapsed && rangeLabel && (
+                        <span className="truncate text-xs text-[var(--color-muted)]">
+                          {rangeLabel}
+                        </span>
+                      )}
+                    </span>
+                    <span className="shrink-0 text-xs tabular-nums text-[var(--color-muted)]">
+                      {durationLabel}
+                    </span>
                   </button>
-                )}
-              </div>
-            ))}
+
+                  {!collapsed && (
+                    <>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                        <label className="block">
+                          <span className="mb-1 block text-sm font-medium text-[var(--color-text)]">
+                            Start
+                          </span>
+                          <TimeInput12
+                            value={s.startTime}
+                            onChange={(v) => updateSession(s.id, { startTime: v })}
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="mb-1 block text-sm font-medium text-[var(--color-text)]">
+                            Einde
+                          </span>
+                          <TimeInput12
+                            value={s.endTime}
+                            onChange={(v) => updateSession(s.id, { endTime: v })}
+                          />
+                        </label>
+                        <Input
+                          label="Focus %"
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={s.focusPercent}
+                          onChange={(e) =>
+                            updateSession(s.id, {
+                              focusPercent: parseInt(e.target.value, 10) || 0,
+                            })
+                          }
+                        />
+                      </div>
+                      {sessions.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeSession(s.id)}
+                          className="mt-2 text-xs text-[var(--color-bad)] hover:underline"
+                        >
+                          Verwijder
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
 
         {!restDay && (
-          <div className="mt-4 grid gap-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-4 text-sm sm:grid-cols-2">
+          <div className="mt-4 grid gap-4 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-overlay)] p-4 text-sm sm:grid-cols-2">
             <div>
-              <span className="text-xs text-[var(--color-muted)]">Total deep work</span>
-              <p className="mt-0.5 text-xl font-semibold tabular-nums text-[var(--color-text)]">
-                {totals.totalHoursWorked}u
-              </p>
+              <span className="text-[var(--color-muted)]">Total deep work</span>
+              <p className="mt-0.5 text-lg font-semibold tabular-nums">{totals.totalHoursWorked}u</p>
             </div>
             <div>
-              <span className="text-xs text-[var(--color-muted)]">Avg focus</span>
-              <p className="mt-0.5 text-xl font-semibold tabular-nums text-[var(--color-text)]">
-                {totals.avgFocus ?? '—'}%
-              </p>
+              <span className="text-[var(--color-muted)]">Avg focus</span>
+              <p className="mt-0.5 text-lg font-semibold tabular-nums">{totals.avgFocus ?? '—'}%</p>
             </div>
           </div>
         )}
       </Card>
 
-      <Card className="p-5 sm:p-6">
+      <Card className="p-4 sm:p-5">
         {restDay ? (
           <div className="space-y-2">
             <p className="text-sm font-medium text-[var(--color-text)]">Timetable score %</p>
