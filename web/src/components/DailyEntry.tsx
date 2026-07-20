@@ -1,13 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import {
-  Check,
-  FileText,
-  Moon,
-  Plus,
-  Trash2,
-  Upload,
-  X,
-} from 'lucide-react'
+import { FileText, Heart, Upload } from 'lucide-react'
 import type { DailyEntry, DeepWorkSession } from '../types'
 import { MAX_SESSIONS } from '../types'
 import {
@@ -30,13 +22,43 @@ import {
   todayISO,
   uid,
 } from '../lib/utils'
-import { Btn, HabitChoice, Input, TimeInput12, Toggle } from './ui'
+import { Card, SectionTitle, Input, Toggle, Btn, HabitChoice, TimeInput12 } from './ui'
 import { FieldVisibilityPanel } from './FieldVisibilityPanel'
 import { useFieldVisibility } from '../hooks/useFieldVisibility'
 
 function initialRestDay(entry?: DailyEntry, date?: string): boolean {
   if (!entry) return isKnownRestDate(date ?? todayISO())
   return isRestDay(entry)
+}
+
+function SleepField({
+  label,
+  hasValue,
+  onClear,
+  children,
+}: {
+  label: string
+  hasValue: boolean
+  onClear: () => void
+  children: ReactNode
+}) {
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <span className="text-sm font-medium text-[var(--color-text)]">{label}</span>
+        {hasValue && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="shrink-0 text-xs text-[var(--color-bad)] hover:underline"
+          >
+            Wis
+          </button>
+        )}
+      </div>
+      {children}
+    </div>
+  )
 }
 
 function ensureSessions(entry?: DailyEntry): DeepWorkSession[] {
@@ -58,65 +80,6 @@ function ensureSessions(entry?: DailyEntry): DeepWorkSession[] {
   return [emptySession()]
 }
 
-function Section({
-  title,
-  action,
-  children,
-  muted,
-}: {
-  title: string
-  action?: ReactNode
-  children: ReactNode
-  muted?: boolean
-}) {
-  return (
-    <section className={`space-y-4 ${muted ? 'opacity-80' : ''}`}>
-      <div className="flex items-end justify-between gap-3 border-b border-[var(--color-border)] pb-2">
-        <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">
-          {title}
-        </h3>
-        {action}
-      </div>
-      {children}
-    </section>
-  )
-}
-
-function FieldClear({ onClear }: { onClear: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClear}
-      className="text-[11px] text-[var(--color-muted)] hover:text-[var(--color-bad)]"
-      aria-label="Wis"
-    >
-      Wis
-    </button>
-  )
-}
-
-function SleepField({
-  label,
-  hasValue,
-  onClear,
-  children,
-}: {
-  label: string
-  hasValue: boolean
-  onClear: () => void
-  children: ReactNode
-}) {
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium text-[var(--color-muted)]">{label}</span>
-        {hasValue && <FieldClear onClear={onClear} />}
-      </div>
-      {children}
-    </div>
-  )
-}
-
 export function DailyEntryForm({
   initial,
   bedTargetDate,
@@ -132,7 +95,6 @@ export function DailyEntryForm({
 }) {
   const date = initial?.date ?? todayISO()
   const bedDateLabel = formatDateNL(bedTargetDate, 'EEE d MMM')
-  const isToday = date === todayISO()
   const { visibility } = useFieldVisibility()
   const [wakeTime, setWakeTime] = useState(initial?.wakeTime ?? '')
   const [bedTime, setBedTime] = useState(initial?.bedTime ?? '')
@@ -319,335 +281,254 @@ export function DailyEntryForm({
   const showSleepCard =
     visibility.wakeTime || visibility.bedTime || visibility.sleepScore || visibility.sleepHours
 
-  const sleepHoursPreview = computeSleepHours(wakeTime || undefined, bedTime || undefined)
-
-  const inputClass =
-    'w-full min-h-11 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5 text-base text-[var(--color-text)] outline-none transition focus:border-[var(--color-text)] focus:ring-0 sm:min-h-0 sm:py-2 sm:text-sm'
-
   return (
-    <div className="mx-auto max-w-2xl pb-28">
-      {/* Header */}
-      <header className="mb-8 space-y-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
-              {isToday ? 'Vandaag' : 'Daglog'}
-            </p>
-            <h1 className="mt-1 font-serif text-3xl tracking-tight text-[var(--color-text)] sm:text-4xl">
-              {formatDateNL(date, 'EEEE')}
-            </h1>
-            <p className="mt-1 text-sm text-[var(--color-muted)]">
-              {formatDateNL(date, 'd MMMM yyyy')}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {restDay && (
-              <span className="rounded-full bg-[var(--color-surface-overlay)] px-2.5 py-1 text-[11px] font-medium text-[var(--color-muted)]">
-                Rustdag
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => setShowPaste((v) => !v)}
-              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition ${
-                showPaste
-                  ? 'border-[var(--color-text)] bg-[var(--color-text)] text-[var(--color-bg)]'
-                  : 'border-[var(--color-border)] text-[var(--color-muted)] hover:border-[var(--color-text)] hover:text-[var(--color-text)]'
-              }`}
-            >
-              <FileText className="h-3.5 w-3.5" />
-              Notities
-            </button>
-          </div>
+    <div className="mx-auto max-w-3xl space-y-4">
+      <Card className="p-5 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SectionTitle sub={formatDateNL(date, 'EEEE d MMMM yyyy')}>
+            {date === todayISO() ? 'Vandaag' : 'Dagelijkse log'}
+          </SectionTitle>
+          <Btn variant="ghost" onClick={() => setShowPaste(!showPaste)} className="!py-2 !text-xs">
+            <FileText className="h-3.5 w-3.5" />
+            Plak .txt notities
+          </Btn>
         </div>
 
         {showPaste && (
-          <div className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-            <p className="text-xs leading-relaxed text-[var(--color-muted)]">
-              Elk blok = één deep work. Formaat:{' '}
-              <code className="text-[var(--color-text)]">8:00 --&gt; 9:30</code> en{' '}
-              <code className="text-[var(--color-text)]">85%</code>, gescheiden door een lege regel.
+          <div className="mt-4 space-y-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-overlay)] p-4">
+            <p className="text-sm text-[var(--color-muted)]">
+              Elk blok = één deep work (DW1, DW2, …). Formaat per blok:{' '}
+              <code>8:00 --&gt; 9:30</code> en <code>85%</code>, gescheiden door een lege regel.
             </p>
             <textarea
-              className={`${inputClass} font-mono text-xs`}
-              rows={7}
+              className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 font-mono text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20"
+              rows={8}
               placeholder={`8:00 --> 9:30\n85%\n\n\n10:43 --> 11:43\n55%`}
               value={pasteText}
               onChange={(e) => setPasteText(e.target.value)}
             />
-            <div className="flex flex-wrap items-center gap-3">
-              <Btn onClick={applyParsed} className="!py-2 !text-xs">
-                <Upload className="h-3.5 w-3.5" /> Invullen
-              </Btn>
-              {parseMsg && <p className="text-xs text-[var(--color-good)]">{parseMsg}</p>}
-            </div>
+            <Btn onClick={applyParsed} className="!py-2 !text-xs">
+              <Upload className="h-3.5 w-3.5" /> Invullen
+            </Btn>
+            {parseMsg && <p className="text-xs text-[var(--color-good)]">{parseMsg}</p>}
           </div>
         )}
+      </Card>
 
-        <FieldVisibilityPanel />
-      </header>
+      <FieldVisibilityPanel className="max-w-md" />
 
-      <div className="space-y-10">
-        {/* Sleep */}
+      <div className="grid gap-4 lg:grid-cols-2">
         {showSleepCard && (
-          <Section
-            title="Slaap"
-            action={
-              hasAnySleep ? (
-                <button
-                  type="button"
-                  onClick={clearAllSleep}
-                  className="text-[11px] text-[var(--color-muted)] hover:text-[var(--color-bad)]"
-                >
-                  Wis alles
-                </button>
-              ) : undefined
-            }
-          >
-            {(visibility.wakeTime || visibility.bedTime) && (
-              <p className="flex items-start gap-2 text-xs text-[var(--color-muted)]">
-                <Moon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                Wake vandaag · bedtijd {bedDateLabel}
-              </p>
+        <Card className="p-5 sm:p-6">
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-[var(--color-text)]">Slaap</h3>
+            {hasAnySleep && (
+              <button
+                type="button"
+                onClick={clearAllSleep}
+                className="text-xs text-[var(--color-bad)] hover:underline"
+              >
+                Wis alles
+              </button>
             )}
-            <div className="grid gap-4 sm:grid-cols-3">
-              {visibility.wakeTime && (
-                <SleepField
-                  label="Wake"
-                  hasValue={Boolean(wakeTime)}
-                  onClear={() => clearSleepField('wake')}
-                >
-                  <TimeInput12 value={wakeTime} onChange={setWakeTime} className={inputClass} />
-                </SleepField>
-              )}
-              {visibility.bedTime && (
-                <SleepField
-                  label={`Bed · ${bedDateLabel}`}
-                  hasValue={Boolean(bedTime)}
-                  onClear={() => clearSleepField('bed')}
-                >
-                  <TimeInput12 value={bedTime} onChange={setBedTime} className={inputClass} />
-                </SleepField>
-              )}
-              {visibility.sleepScore && (
-                <SleepField
-                  label="Sleep score %"
-                  hasValue={sleepScore !== ''}
-                  onClear={() => clearSleepField('score')}
-                >
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={sleepScore}
-                    onChange={(e) =>
-                      setSleepScore(e.target.value ? parseFloat(e.target.value) : '')
-                    }
-                    className={inputClass}
-                  />
-                </SleepField>
-              )}
-            </div>
-            {visibility.sleepHours && sleepHoursPreview != null && (
-              <p className="text-sm tabular-nums text-[var(--color-text)]">
-                <span className="text-[var(--color-muted)]">Berekend · </span>
-                {sleepHoursPreview.toFixed(2)}u slaap
-              </p>
+          </div>
+          {(visibility.wakeTime || visibility.bedTime) && (
+            <p className="mb-3 text-xs text-[var(--color-muted)]">
+              Whoop-stijl: wake van vandaag, bedtijd van {bedDateLabel} (avond).
+            </p>
+          )}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {visibility.wakeTime && (
+            <SleepField label="Wake (vandaag)" hasValue={Boolean(wakeTime)} onClear={() => clearSleepField('wake')}>
+              <TimeInput12 value={wakeTime} onChange={setWakeTime} />
+            </SleepField>
             )}
-          </Section>
+            {visibility.bedTime && (
+            <SleepField
+              label={`Bed (${bedDateLabel})`}
+              hasValue={Boolean(bedTime)}
+              onClear={() => clearSleepField('bed')}
+            >
+              <TimeInput12 value={bedTime} onChange={setBedTime} />
+            </SleepField>
+            )}
+            {visibility.sleepScore && (
+            <SleepField
+              label="Sc%"
+              hasValue={sleepScore !== ''}
+              onClear={() => clearSleepField('score')}
+            >
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={sleepScore}
+                onChange={(e) => setSleepScore(e.target.value ? parseFloat(e.target.value) : '')}
+                className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20"
+              />
+            </SleepField>
+            )}
+          </div>
+        </Card>
         )}
 
-        {/* Habits */}
-        <Section title="Habits">
+        <Card className={`p-5 sm:p-6 ${!showSleepCard ? 'lg:col-span-2' : ''}`}>
+          <h3 className="mb-4 text-sm font-semibold text-[var(--color-text)]">Habits</h3>
           <div className="space-y-3">
             <Toggle
               label="Rustdag (geen werk / timetable)"
               checked={restDay}
               onChange={setRestDayMode}
             />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input
-                label="Meditation (min)"
-                type="number"
-                min="0"
-                value={meditation}
-                onChange={(e) => setMeditation(e.target.value ? parseFloat(e.target.value) : '')}
-              />
-              <div className="grid grid-cols-2 gap-3">
-                {visibility.gratitude && (
-                  <HabitChoice label="Gratitude" value={gratitude} onChange={setGratitude} />
-                )}
-                <HabitChoice label="Exercise" value={exercise} onChange={setExercise} />
-              </div>
-            </div>
-          </div>
-        </Section>
-
-        {/* Deep work */}
-        <Section
-          title="Deep work"
-          muted={restDay}
-          action={
-            !restDay && sessions.length < MAX_SESSIONS ? (
-              <button
-                type="button"
-                onClick={addSession}
-                className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--color-text)] hover:underline"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Sessie
-              </button>
-            ) : undefined
-          }
-        >
-          {restDay ? (
-            <div className="space-y-3 rounded-xl border border-dashed border-[var(--color-border)] px-4 py-6">
-              <div className="h-2.5 rounded-full" style={{ background: REST_STRIPE_BG }} />
-              <p className="text-sm text-[var(--color-muted)]">
-                Rustdag — deep work en timetable staan uit.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {sessions.map((s, i) => {
-                const hours =
-                  s.startTime && s.endTime
-                    ? sessionDurationHours(s)
-                    : s.durationHours != null
-                      ? s.durationHours
-                      : null
-                return (
-                  <div
-                    key={s.id}
-                    className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
-                  >
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2.5">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--color-text)] text-xs font-semibold text-[var(--color-bg)]">
-                          {i + 1}
-                        </span>
-                        <span className="text-sm font-medium text-[var(--color-text)]">
-                          Session {i + 1}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm tabular-nums text-[var(--color-muted)]">
-                          {hours != null ? `${hours.toFixed(2)}u` : '—'}
-                        </span>
-                        {sessions.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeSession(s.id)}
-                            className="rounded-md p-1.5 text-[var(--color-muted)] hover:bg-[var(--color-surface-overlay)] hover:text-[var(--color-bad)]"
-                            aria-label="Verwijder sessie"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <label className="block space-y-1.5">
-                        <span className="text-xs font-medium text-[var(--color-muted)]">Start</span>
-                        <TimeInput12
-                          value={s.startTime}
-                          onChange={(v) => updateSession(s.id, { startTime: v })}
-                          className={inputClass}
-                        />
-                      </label>
-                      <label className="block space-y-1.5">
-                        <span className="text-xs font-medium text-[var(--color-muted)]">Einde</span>
-                        <TimeInput12
-                          value={s.endTime}
-                          onChange={(v) => updateSession(s.id, { endTime: v })}
-                          className={inputClass}
-                        />
-                      </label>
-                      <Input
-                        label="Focus %"
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={s.focusPercent}
-                        onChange={(e) =>
-                          updateSession(s.id, {
-                            focusPercent: parseInt(e.target.value, 10) || 0,
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
-                )
-              })}
-
-              <div className="grid grid-cols-2 gap-3 rounded-xl bg-[var(--color-surface-overlay)] px-4 py-3.5">
-                <div>
-                  <p className="text-[11px] uppercase tracking-wider text-[var(--color-muted)]">
-                    Totaal
-                  </p>
-                  <p className="mt-0.5 text-xl font-semibold tabular-nums text-[var(--color-text)]">
-                    {totals.totalHoursWorked}
-                    <span className="text-sm font-normal text-[var(--color-muted)]">u</span>
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[11px] uppercase tracking-wider text-[var(--color-muted)]">
-                    Avg focus
-                  </p>
-                  <p className="mt-0.5 text-xl font-semibold tabular-nums text-[var(--color-text)]">
-                    {totals.avgFocus ?? '—'}
-                    {totals.avgFocus != null && (
-                      <span className="text-sm font-normal text-[var(--color-muted)]">%</span>
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-        </Section>
-
-        {/* Timetable */}
-        <Section title="Timetable" muted={restDay}>
-          {restDay ? (
-            <div className="space-y-2">
-              <div className="h-2.5 rounded-full" style={{ background: REST_STRIPE_BG }} />
-              <p className="text-xs text-[var(--color-muted)]">Niet van toepassing op rustdagen</p>
-            </div>
-          ) : (
             <Input
-              label="Score %"
+              label="Meditation (min)"
               type="number"
               min="0"
-              max="100"
-              value={timetable}
-              onChange={(e) => setTimetable(e.target.value ? parseFloat(e.target.value) : '')}
+              value={meditation}
+              onChange={(e) => setMeditation(e.target.value ? parseFloat(e.target.value) : '')}
             />
-          )}
-        </Section>
+            {visibility.gratitude && (
+              <HabitChoice label="Gratitude journal" value={gratitude} onChange={setGratitude} />
+            )}
+            <HabitChoice label="Exercise" value={exercise} onChange={setExercise} />
+          </div>
+        </Card>
       </div>
 
-      {/* Sticky save bar */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md md:left-[240px]">
-        <div className="mx-auto flex max-w-2xl items-center gap-3 px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
-          <Btn onClick={handleSave} className="min-w-[8rem] flex-1 sm:flex-none">
-            {saved ? (
-              <>
-                <Check className="h-4 w-4" /> Opgeslagen
-              </>
-            ) : (
-              'Opslaan'
-            )}
+      <Card className={`p-5 sm:p-6 ${restDay ? 'opacity-90' : ''}`}>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-[var(--color-text)]">Deep work sessions</h3>
+          {!restDay && sessions.length < MAX_SESSIONS && (
+            <button
+              type="button"
+              onClick={addSession}
+              className="text-xs font-medium text-[var(--color-accent)] hover:underline"
+            >
+              + sessie
+            </button>
+          )}
+        </div>
+
+        {restDay ? (
+          <div className="space-y-2">
+            <div className="h-3 rounded-full" style={{ background: REST_STRIPE_BG }} />
+            <p className="text-sm text-[var(--color-muted)]">
+              Rustdag — deep work en timetable zijn uitgeschakeld.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {sessions.map((s, i) => (
+              <div
+                key={s.id}
+                className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-overlay)] p-3.5 sm:p-4"
+              >
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--color-text)] text-[11px] font-semibold text-[var(--color-bg)]">
+                      {i + 1}
+                    </span>
+                    <span className="text-sm font-medium text-[var(--color-text)]">Deep work {i + 1}</span>
+                  </div>
+                  <span className="text-xs tabular-nums text-[var(--color-muted)]">
+                    {s.startTime && s.endTime
+                      ? `${sessionDurationHours(s).toFixed(2)}u`
+                      : s.durationHours != null
+                        ? `${s.durationHours.toFixed(2)}u`
+                        : '—'}
+                  </span>
+                </div>
+                <div className="grid gap-2.5 sm:grid-cols-3">
+                  <label className="block">
+                    <span className="mb-1 block text-sm font-medium text-[var(--color-text)]">Start</span>
+                    <TimeInput12
+                      value={s.startTime}
+                      onChange={(v) => updateSession(s.id, { startTime: v })}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-sm font-medium text-[var(--color-text)]">Einde</span>
+                    <TimeInput12
+                      value={s.endTime}
+                      onChange={(v) => updateSession(s.id, { endTime: v })}
+                    />
+                  </label>
+                  <Input
+                    label="Focus %"
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={s.focusPercent}
+                    onChange={(e) =>
+                      updateSession(s.id, { focusPercent: parseInt(e.target.value, 10) || 0 })
+                    }
+                  />
+                </div>
+                {sessions.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeSession(s.id)}
+                    className="mt-2.5 text-xs text-[var(--color-bad)] hover:underline"
+                  >
+                    Verwijder
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!restDay && (
+          <div className="mt-4 grid gap-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-4 text-sm sm:grid-cols-2">
+            <div>
+              <span className="text-xs text-[var(--color-muted)]">Total deep work</span>
+              <p className="mt-0.5 text-xl font-semibold tabular-nums text-[var(--color-text)]">
+                {totals.totalHoursWorked}u
+              </p>
+            </div>
+            <div>
+              <span className="text-xs text-[var(--color-muted)]">Avg focus</span>
+              <p className="mt-0.5 text-xl font-semibold tabular-nums text-[var(--color-text)]">
+                {totals.avgFocus ?? '—'}%
+              </p>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      <Card className="p-5 sm:p-6">
+        {restDay ? (
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-[var(--color-text)]">Timetable score %</p>
+            <div className="h-3 rounded-full" style={{ background: REST_STRIPE_BG }} />
+            <p className="text-xs text-[var(--color-muted)]">Niet van toepassing op rustdagen</p>
+          </div>
+        ) : (
+          <Input
+            label="Timetable score %"
+            type="number"
+            min="0"
+            max="100"
+            value={timetable}
+            onChange={(e) => setTimetable(e.target.value ? parseFloat(e.target.value) : '')}
+          />
+        )}
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+          <Btn onClick={handleSave} className="w-full sm:w-auto">
+            Opslaan
           </Btn>
           {canDelete && (
-            <Btn variant="danger" onClick={handleDelete} className="!px-3" aria-label="Verwijder dag">
-              <Trash2 className="h-4 w-4" />
+            <Btn variant="danger" onClick={handleDelete} className="w-full sm:w-auto">
+              Verwijder dag
             </Btn>
           )}
           {saved && (
-            <span className="hidden text-sm text-[var(--color-good)] sm:inline">Klaar</span>
+            <span className="flex items-center gap-1 text-sm text-[var(--color-good)]">
+              <Heart className="h-4 w-4" /> Opgeslagen
+            </span>
           )}
         </div>
-      </div>
+      </Card>
     </div>
   )
 }
