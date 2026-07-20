@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { isAuthorizedRequest } from '../lib/access'
 
 const KV_KEY = 'zebbi-os:state'
 const BLOB_PATH = 'zebbi-os/state.json'
@@ -11,10 +12,7 @@ type StoredState = {
 }
 
 function authorized(req: VercelRequest): boolean {
-  const pin = process.env.ZEEBI_PIN ?? process.env.ZEEBI_SYNC_TOKEN ?? '1249'
-  if (!pin) return true
-  const header = req.headers.authorization
-  return header === `Bearer ${pin}`
+  return isAuthorizedRequest(req)
 }
 
 function entryStamp(e: { updatedAt?: string; date?: string }): string {

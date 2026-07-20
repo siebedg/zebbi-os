@@ -66,7 +66,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const result = await pushRemoteState(stamped)
       if (result.error === 'auth') {
         setSyncStatus('auth')
-        setSyncError('PIN vereist of onjuist')
+        setSyncError('Cloud sync geweigerd')
         signalAuthLost()
       } else if (!result.ok) {
         setSyncStatus('offline')
@@ -94,7 +94,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const { state: remote, status, error, storage } = await fetchRemoteState()
     if (status === 401) {
       setSyncStatus('auth')
-      setSyncError('PIN vereist')
+      setSyncError('Cloud sync geweigerd')
       signalAuthLost()
       return
     }
@@ -119,15 +119,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     async function init() {
       const local = loadState()
       const [bundled, remoteResult] = await Promise.all([loadAllBundledMonths(), fetchRemoteState()])
+      const remoteBlocked = remoteResult.status === 401
 
-      if (remoteResult.status === 401) {
-        if (!cancelled) signalAuthLost()
-        return
+      if (remoteBlocked && !cancelled) {
+        signalAuthLost()
+        setSyncStatus('auth')
+        setSyncError('Cloud sync geweigerd')
       }
 
       let base: AppState = { dailyLog: [], readingBooks: [], weightLog: [] }
 
-      if (remoteResult.state && remoteResult.state.dailyLog.length > 0) {
+      if (!remoteBlocked && remoteResult.state && remoteResult.state.dailyLog.length > 0) {
         base = remoteResult.state
       } else if (local.dailyLog.length > 0) {
         base = local
@@ -137,7 +139,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
       let log = patchAllBundledMonths(base.dailyLog, bundled)
       log = mergeByUpdatedAt(log, local.dailyLog)
-      if (remoteResult.state) {
+      if (!remoteBlocked && remoteResult.state) {
         log = mergeByUpdatedAt(log, remoteResult.state.dailyLog)
       }
 
@@ -145,13 +147,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         SEED_WEIGHT_LOG,
         mergeAppState(
           { dailyLog: [], readingBooks: [], weightLog: local.weightLog ?? [] },
-          remoteResult.state ?? {},
+          remoteBlocked ? {} : remoteResult.state ?? {},
         ).weightLog ?? [],
       )
 
       const merged = mergeAppState(
         { dailyLog: log, readingBooks: [], weightLog },
-        mergeAppState(remoteResult.state ?? { dailyLog: [], readingBooks: [], weightLog: [] }, local),
+        mergeAppState(
+          remoteBlocked
+            ? { dailyLog: [], readingBooks: [], weightLog: [] }
+            : remoteResult.state ?? { dailyLog: [], readingBooks: [], weightLog: [] },
+          local,
+        ),
       )
 
       if (!cancelled) {
@@ -160,12 +167,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         initDone.current = true
         setReady(true)
 
+        if (remoteBlocked) return
+
         setSyncStatus('syncing')
         const result = await pushRemoteState(withTimestamp(merged))
         if (!cancelled) {
           if (result.error === 'auth') {
             setSyncStatus('auth')
-            setSyncError('PIN vereist')
+            setSyncError('Cloud sync geweigerd')
             signalAuthLost()
           } else if (!result.ok) {
             setSyncStatus('offline')

@@ -45,7 +45,7 @@ export async function startWhoopConnect(): Promise<{ ok: boolean; error?: string
   const r = await fetch('/api/whoop-auth', { headers: authHeaders(), cache: 'no-store' })
   if (r.status === 401) {
     signalAuthLost()
-    return { ok: false, error: 'PIN vereist' }
+    return { ok: false, error: 'Niet ontgrendeld' }
   }
   const data = await parseJson<{ url?: string }>(r)
   if (!r.ok || !data.url) return { ok: false, error: data.error ?? 'Kon Whoop auth niet starten' }
@@ -60,7 +60,7 @@ export async function syncWhoop(): Promise<WhoopSyncResult> {
   })
   if (r.status === 401) {
     signalAuthLost()
-    return { ok: false, error: 'PIN vereist' }
+    return { ok: false, error: 'Niet ontgrendeld' }
   }
   const data = await parseJson<WhoopSyncResult>(r)
   if (!r.ok) return { ok: false, error: data.error ?? 'Sync mislukt' }
@@ -74,7 +74,7 @@ export async function disconnectWhoop(): Promise<{ ok: boolean; error?: string }
   })
   if (r.status === 401) {
     signalAuthLost()
-    return { ok: false, error: 'PIN vereist' }
+    return { ok: false, error: 'Niet ontgrendeld' }
   }
   const data = await parseJson<{ ok?: boolean }>(r)
   if (!r.ok) return { ok: false, error: data.error ?? 'Disconnect mislukt' }

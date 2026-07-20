@@ -1,2 +1,2 @@
-/** Local PIN for Zebbi OS lock screen. Keep in sync with ZEEBI_PIN on Vercel for cloud sync. */
-export const APP_PIN = '1249'
+/** @deprecated Use accessConfig — kept so old imports don't break. */
+export { APP_ACCESS_TOKEN as APP_PIN } from './accessConfig'
