@@ -56,7 +56,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       return
     }
     setShake(true)
-    setError('Niet de juiste vorm — teken de Z')
+    setError('Niet de juiste vorm')
     setTimeout(() => {
       setShake(false)
       resetPath()
@@ -128,8 +128,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           <Lock className="h-5 w-5" />
           <h2 className="text-lg font-semibold">Zebbi OS</h2>
         </div>
-        <p className="mb-1 text-sm text-[var(--color-muted)]">Teken je unlock-vorm</p>
-        <p className="mb-5 text-xs text-[var(--color-muted)]">Hint: de letter Z</p>
+        <p className="mb-5 text-sm text-[var(--color-muted)]">Teken je unlock-vorm</p>
 
         <svg
           ref={svgRef}
