@@ -67,6 +67,25 @@ export async function syncWhoop(): Promise<WhoopSyncResult> {
   return { ...data, ok: true }
 }
 
+const AUTO_SYNC_DAY_KEY = 'zebbi-whoop-auto-sync-day'
+
+/** Once per calendar day: sync Whoop → cloud when connected. */
+export async function maybeAutoSyncWhoop(): Promise<WhoopSyncResult | null> {
+  try {
+    const today = new Date().toISOString().slice(0, 10)
+    if (localStorage.getItem(AUTO_SYNC_DAY_KEY) === today) return null
+
+    const status = await fetchWhoopStatus()
+    if (!status.connected) return null
+
+    const result = await syncWhoop()
+    if (result.ok) localStorage.setItem(AUTO_SYNC_DAY_KEY, today)
+    return result
+  } catch {
+    return null
+  }
+}
+
 export async function disconnectWhoop(): Promise<{ ok: boolean; error?: string }> {
   const r = await fetch('/api/whoop-sync', {
     method: 'DELETE',

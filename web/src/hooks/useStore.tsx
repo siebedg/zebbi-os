@@ -10,6 +10,7 @@ import {
 } from '../lib/sync'
 import { mergeAppState, mergeWeightLog } from '../lib/mergeState'
 import { signalAuthLost } from '../lib/auth'
+import { maybeAutoSyncWhoop } from '../lib/whoopClient'
 import { SEED_WEIGHT_LOG } from '../lib/seedWeight'
 import { entryHasData, mergeByUpdatedAt, patchAllBundledMonths, todayISO, uid } from '../lib/utils'
 
@@ -181,6 +182,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             setSyncError(result.error ?? 'Opslaan mislukt — storage niet gekoppeld?')
           } else {
             setSyncStatus('synced')
+            // Daily Whoop pull into Redis, then refresh local state
+            void maybeAutoSyncWhoop().then((whoop) => {
+              if (whoop?.ok) void pullFromCloud()
+            })
           }
         }
       }

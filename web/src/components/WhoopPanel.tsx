@@ -26,7 +26,7 @@ export function WhoopPanel() {
     const params = new URLSearchParams(window.location.search)
     const whoop = params.get('whoop')
     if (whoop === 'connected') {
-      setMsg('Whoop verbonden — klik Sync om slaap vanaf 4 jul te laden.')
+      setMsg('Whoop verbonden — sync loopt automatisch elke dag (of klik Sync).')
       window.history.replaceState({}, '', '/whoop')
     } else if (whoop === 'error') {
       setMsg(`Whoop fout: ${params.get('msg') ?? 'onbekend'}`)
@@ -81,7 +81,7 @@ export function WhoopPanel() {
           </div>
           <p className="mt-1 text-xs text-[var(--color-muted)]">
             Wake, bed &amp; sleep score vanaf {status.syncFrom}. Eerdere dagen blijven met de hand
-            ingevuld.
+            ingevuld. Sync gebeurt automatisch elke ochtend (~8u BE) en 1× per dag bij openen van de app.
           </p>
           <p className="mt-1 text-xs text-[var(--color-muted)]">
             {status.connected
