@@ -2,6 +2,7 @@
 
 @theme {
   --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Fraunces", "Times New Roman", Georgia, serif;
   --font-mono: ui-monospace, "Cascadia Code", "Segoe UI Mono", monospace;
   --color-bg: #fafafa;
   --color-surface: #ffffff;
@@ -111,5 +112,46 @@ html.dark {
   .scroll-touch {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
+  }
+
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  @keyframes osc-fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes osc-callout-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .osc-fade-up {
+    animation: osc-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .osc-callout {
+    animation: osc-callout-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .osc-fade-up,
+    .osc-callout {
+      animation: none;
+    }
   }
 }
