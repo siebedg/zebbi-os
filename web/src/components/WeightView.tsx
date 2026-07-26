@@ -1,36 +1,37 @@
 import { useMemo, useState } from 'react'
-import { format, parseISO, subDays, subMonths } from 'date-fns'
+import {
+  differenceInCalendarDays,
+  format,
+  parseISO,
+} from 'date-fns'
 import { nl } from 'date-fns/locale'
 import {
-  Area,
-  AreaChart,
   CartesianGrid,
+  ComposedChart,
+  Line,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
-import { ChevronDown, Plus, Trash2 } from 'lucide-react'
+import { ChevronDown, Plus, Target, Trash2 } from 'lucide-react'
 import type { WeightEntry } from '../types'
+import { WEIGHT_GOAL_DATE, WEIGHT_GOAL_KG } from '../lib/weightGoal'
 import { useTheme } from '../hooks/useTheme'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { Btn, Card, Input } from './ui'
 
-type RangeKey = '3m' | '6m' | '1y' | 'all'
-
-const RANGES: { key: RangeKey; label: string; months?: number }[] = [
-  { key: '3m', label: '3M', months: 3 },
-  { key: '6m', label: '6M', months: 6 },
-  { key: '1y', label: '1J', months: 12 },
-  { key: 'all', label: 'Alles' },
-]
+function formatKg(n: number): string {
+  return n.toFixed(1).replace('.', ',')
+}
 
 function chartPalette(theme: 'light' | 'dark') {
   return theme === 'dark'
     ? {
-        line: '#34d399',
-        fillTop: '#34d39955',
-        fillBottom: '#34d39908',
+        actual: '#34d399',
+        project: '#a1a1aa',
+        goal: '#fbbf24',
         grid: '#27272a',
         tick: '#71717a',
         tooltipBg: '#18181b',
@@ -38,34 +39,15 @@ function chartPalette(theme: 'light' | 'dark') {
         tooltipText: '#fafafa',
       }
     : {
-        line: '#059669',
-        fillTop: '#05966944',
-        fillBottom: '#05966908',
+        actual: '#059669',
+        project: '#a1a1aa',
+        goal: '#d97706',
         grid: '#f4f4f5',
         tick: '#a1a1aa',
         tooltipBg: '#ffffff',
         tooltipBorder: '#e4e4e7',
         tooltipText: '#18181b',
       }
-}
-
-function formatKg(n: number): string {
-  return n.toFixed(1).replace('.', ',')
-}
-
-function deltaText(current: number, previous: number | null): { text: string; positive: boolean | null } {
-  if (previous == null) return { text: '—', positive: null }
-  const d = Math.round((current - previous) * 10) / 10
-  if (d === 0) return { text: '0,0', positive: null }
-  const sign = d > 0 ? '+' : ''
-  return { text: `${sign}${d.toFixed(1).replace('.', ',')}`, positive: d > 0 }
-}
-
-function findEntryOnOrBefore(entries: WeightEntry[], target: string): WeightEntry | null {
-  for (let i = entries.length - 1; i >= 0; i--) {
-    if (entries[i].date <= target) return entries[i]
-  }
-  return null
 }
 
 export function WeightView({
@@ -80,7 +62,6 @@ export function WeightView({
   const { theme } = useTheme()
   const isMobile = useMediaQuery('(max-width: 767px)')
   const palette = chartPalette(theme)
-  const [range, setRange] = useState<RangeKey>('6m')
   const [historyOpen, setHistoryOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
@@ -91,48 +72,77 @@ export function WeightView({
     [entries],
   )
 
-  const filtered = useMemo(() => {
-    const r = RANGES.find((x) => x.key === range)
-    if (!r?.months || sorted.length === 0) return sorted
-    const cutoff = format(subMonths(parseISO(sorted[sorted.length - 1].date), r.months), 'yyyy-MM-dd')
-    return sorted.filter((e) => e.date >= cutoff)
-  }, [sorted, range])
-
-  const chartData = useMemo(
-    () =>
-      filtered.map((e) => ({
-        label: format(parseISO(e.date), isMobile ? 'd/M' : 'd MMM', { locale: nl }),
-        date: e.date,
-        kg: e.kg,
-      })),
-    [filtered, isMobile],
-  )
-
   const latest = sorted[sorted.length - 1]
   const previous = sorted.length > 1 ? sorted[sorted.length - 2] : null
 
-  const stats = useMemo(() => {
-    if (!latest) return null
-    const today = latest.date
-    const weekAgo = findEntryOnOrBefore(sorted, format(subDays(parseISO(today), 7), 'yyyy-MM-dd'))
-    const monthAgo = findEntryOnOrBefore(sorted, format(subMonths(parseISO(today), 1), 'yyyy-MM-dd'))
-    const vals = filtered.map((e) => e.kg)
-    return {
-      latest: latest.kg,
-      vsPrev: deltaText(latest.kg, previous?.kg ?? null),
-      vsWeek: deltaText(latest.kg, weekAgo?.kg ?? null),
-      vsMonth: deltaText(latest.kg, monthAgo?.kg ?? null),
-      low: vals.length ? Math.min(...vals) : null,
-      high: vals.length ? Math.max(...vals) : null,
-    }
-  }, [latest, previous, sorted, filtered])
+  const goalDate = parseISO(WEIGHT_GOAL_DATE)
+  const daysLeft = latest
+    ? Math.max(0, differenceInCalendarDays(goalDate, parseISO(latest.date)))
+    : Math.max(0, differenceInCalendarDays(goalDate, new Date()))
+  const weeksLeft = daysLeft / 7
+
+  const remaining =
+    latest != null ? Math.round((WEIGHT_GOAL_KG - latest.kg) * 10) / 10 : null
+  const neededPerWeek =
+    remaining != null && weeksLeft > 0
+      ? Math.round((remaining / weeksLeft) * 100) / 100
+      : null
+
+  const vsPrev =
+    latest && previous
+      ? Math.round((latest.kg - previous.kg) * 10) / 10
+      : null
+
+  /** Chart: actual check-ins + dashed projection to goal */
+  const chartData = useMemo(() => {
+    if (sorted.length === 0) return [] as {
+      date: string
+      label: string
+      actual: number | null
+      project: number | null
+    }[]
+
+    const actual = sorted.map((e) => ({
+      date: e.date,
+      label: format(parseISO(e.date), isMobile ? 'd/M' : 'd MMM', { locale: nl }),
+      actual: e.kg as number | null,
+      project: null as number | null,
+    }))
+
+    const last = sorted[sorted.length - 1]
+    if (last.date >= WEIGHT_GOAL_DATE) return actual
+
+    const rows = actual.map((row, i) =>
+      i === actual.length - 1 ? { ...row, project: row.actual } : row,
+    )
+
+    rows.push({
+      date: WEIGHT_GOAL_DATE,
+      label: format(goalDate, isMobile ? 'd/M' : 'd MMM', { locale: nl }),
+      actual: null,
+      project: WEIGHT_GOAL_KG,
+    })
+
+    return rows
+  }, [sorted, isMobile, goalDate])
+
+  const progressPct = useMemo(() => {
+    if (!latest || sorted.length === 0) return 0
+    const start = sorted[0].kg
+    const span = WEIGHT_GOAL_KG - start
+    if (Math.abs(span) < 0.05) return latest.kg >= WEIGHT_GOAL_KG ? 100 : 0
+    return Math.min(100, Math.max(0, ((latest.kg - start) / span) * 100))
+  }, [latest, sorted])
 
   const domain = useMemo(() => {
-    if (filtered.length === 0) return [60, 80]
-    const vals = filtered.map((e) => e.kg)
-    const pad = 0.8
-    return [Math.floor((Math.min(...vals) - pad) * 10) / 10, Math.ceil((Math.max(...vals) + pad) * 10) / 10]
-  }, [filtered])
+    const vals = sorted.map((e) => e.kg)
+    vals.push(WEIGHT_GOAL_KG)
+    if (vals.length === 0) return [70, 80]
+    const lo = Math.min(...vals)
+    const hi = Math.max(...vals)
+    const pad = 1.2
+    return [Math.floor((lo - pad) * 10) / 10, Math.ceil((hi + pad) * 10) / 10]
+  }, [sorted])
 
   const add = () => {
     const w = parseFloat(kg.replace(',', '.'))
@@ -142,93 +152,136 @@ export function WeightView({
     setAddOpen(false)
   }
 
-  const DeltaPill = ({ label, delta }: { label: string; delta: { text: string; positive: boolean | null } }) => (
-    <div className="rounded-xl bg-[var(--color-surface-overlay)] px-3 py-2.5">
-      <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-muted)]">{label}</p>
-      <p
-        className={`mt-0.5 text-sm font-semibold tabular-nums ${
-          delta.positive === true
-            ? 'text-[var(--color-bad)]'
-            : delta.positive === false
-              ? 'text-[var(--color-good)]'
-              : 'text-[var(--color-text)]'
-        }`}
-      >
-        {delta.text === '—' ? '—' : `${delta.text} kg`}
-      </p>
-    </div>
-  )
-
   return (
-    <div className="mx-auto max-w-lg space-y-4">
-      {/* Hero — MacroFactor-style */}
-      <div className="pt-1 text-center">
-        <p className="text-xs font-medium uppercase tracking-widest text-[var(--color-muted)]">Gewicht</p>
-        {stats ? (
+    <div className="mx-auto max-w-lg space-y-5">
+      <header className="pt-1 text-center">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]">
+          Gewicht
+        </p>
+        <p className="mt-1 text-xs text-[var(--color-muted)]">
+          Wekelijks MacroFactor-average · geen dagelijkse dubbele log
+        </p>
+
+        {latest ? (
           <>
-            <p className="mt-1 text-5xl font-semibold tracking-tight tabular-nums text-[var(--color-text)] sm:text-6xl">
-              {formatKg(stats.latest)}
-              <span className="ml-1 text-2xl font-normal text-[var(--color-muted)] sm:text-3xl">kg</span>
+            <p className="mt-3 text-5xl font-semibold tracking-tight tabular-nums text-[var(--color-text)] sm:text-6xl">
+              {formatKg(latest.kg)}
+              <span className="ml-1 text-2xl font-normal text-[var(--color-muted)]">kg</span>
             </p>
             <p className="mt-1 text-sm text-[var(--color-muted)]">
-              {format(parseISO(latest.date), 'EEEE d MMMM yyyy', { locale: nl })}
+              Laatste check-in · {format(parseISO(latest.date), 'd MMMM yyyy', { locale: nl })}
             </p>
           </>
         ) : (
-          <p className="mt-4 text-sm text-[var(--color-muted)]">Nog geen metingen</p>
+          <p className="mt-6 text-sm text-[var(--color-muted)]">Nog geen weekgemiddelde</p>
         )}
-      </div>
+      </header>
 
-      {stats && (
-        <div className="grid grid-cols-3 gap-2">
-          <DeltaPill label="vs vorige" delta={stats.vsPrev} />
-          <DeltaPill label="7 dagen" delta={stats.vsWeek} />
-          <DeltaPill label="30 dagen" delta={stats.vsMonth} />
+      {/* Goal card */}
+      <Card className="p-4">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface-overlay)]">
+            <Target className="h-4 w-4 text-[var(--color-muted)]" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-[var(--color-text)]">
+              Doel {formatKg(WEIGHT_GOAL_KG)} kg
+            </p>
+            <p className="text-xs text-[var(--color-muted)]">
+              {format(goalDate, 'd MMMM yyyy', { locale: nl })}
+              {daysLeft > 0 ? ` · ${Math.ceil(weeksLeft)} weken` : ' · deadline bereikt'}
+            </p>
+
+            {remaining != null && (
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                <div className="rounded-lg bg-[var(--color-surface-overlay)] px-2.5 py-2">
+                  <p className="text-[10px] uppercase tracking-wide text-[var(--color-muted)]">Nog</p>
+                  <p className="text-sm font-semibold tabular-nums text-[var(--color-text)]">
+                    {remaining > 0 ? `+${formatKg(remaining)}` : formatKg(remaining)}
+                    <span className="text-xs font-normal text-[var(--color-muted)]"> kg</span>
+                  </p>
+                </div>
+                <div className="rounded-lg bg-[var(--color-surface-overlay)] px-2.5 py-2">
+                  <p className="text-[10px] uppercase tracking-wide text-[var(--color-muted)]">Pace</p>
+                  <p className="text-sm font-semibold tabular-nums text-[var(--color-text)]">
+                    {neededPerWeek != null ? (
+                      <>
+                        {neededPerWeek > 0 ? '+' : ''}
+                        {formatKg(neededPerWeek)}
+                        <span className="text-xs font-normal text-[var(--color-muted)]">/w</span>
+                      </>
+                    ) : (
+                      '—'
+                    )}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-[var(--color-surface-overlay)] px-2.5 py-2">
+                  <p className="text-[10px] uppercase tracking-wide text-[var(--color-muted)]">Δ week</p>
+                  <p
+                    className={`text-sm font-semibold tabular-nums ${
+                      vsPrev == null
+                        ? 'text-[var(--color-text)]'
+                        : vsPrev > 0
+                          ? 'text-[var(--color-good)]'
+                          : vsPrev < 0
+                            ? 'text-[var(--color-bad)]'
+                            : 'text-[var(--color-text)]'
+                    }`}
+                  >
+                    {vsPrev == null
+                      ? '—'
+                      : `${vsPrev > 0 ? '+' : ''}${formatKg(vsPrev)}`}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {latest && (
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-overlay)]">
+                <div
+                  className="h-full rounded-full bg-[var(--color-text)] transition-all"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      </Card>
 
-      {/* Range pills */}
-      <div className="flex justify-center gap-1.5">
-        {RANGES.map((r) => (
-          <button
-            key={r.key}
-            type="button"
-            onClick={() => setRange(r.key)}
-            className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition ${
-              range === r.key
-                ? 'bg-[var(--color-text)] text-[var(--color-bg)]'
-                : 'bg-[var(--color-surface-overlay)] text-[var(--color-muted)] hover:text-[var(--color-text)]'
-            }`}
-          >
-            {r.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Chart */}
+      {/* Progress graph */}
       <Card className="overflow-hidden border-0 bg-transparent p-0 shadow-none">
+        <div className="mb-2 flex items-center justify-between px-1">
+          <p className="text-xs font-medium text-[var(--color-muted)]">Progress → goal</p>
+          <p className="text-[10px] text-[var(--color-muted)]">
+            <span className="inline-block h-0.5 w-3 align-middle" style={{ background: palette.actual }} />{' '}
+            check-ins
+            <span className="mx-1.5 opacity-40">·</span>
+            <span
+              className="inline-block h-0.5 w-3 align-middle border-t border-dashed"
+              style={{ borderColor: palette.project }}
+            />{' '}
+            projectie
+          </p>
+        </div>
         <div className="h-56 w-full sm:h-64">
-          {chartData.length < 2 ? (
+          {chartData.length < 1 ? (
             <div className="flex h-full items-center justify-center text-sm text-[var(--color-muted)]">
-              Minstens 2 metingen in deze periode
+              Voeg je eerste weekgemiddelde toe
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 12, right: isMobile ? 4 : 12, left: isMobile ? -16 : -8, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="weightFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={palette.fillTop} />
-                    <stop offset="100%" stopColor={palette.fillBottom} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke={palette.grid} strokeDasharray="0" vertical={false} />
+              <ComposedChart
+                data={chartData}
+                margin={{ top: 12, right: isMobile ? 8 : 16, left: isMobile ? -12 : -4, bottom: 0 }}
+              >
+                <CartesianGrid stroke={palette.grid} vertical={false} />
                 <XAxis
                   dataKey="label"
                   tick={{ fill: palette.tick, fontSize: 10 }}
                   axisLine={false}
                   tickLine={false}
                   interval="preserveStartEnd"
-                  minTickGap={28}
+                  minTickGap={24}
                 />
                 <YAxis
                   domain={domain}
@@ -236,7 +289,6 @@ export function WeightView({
                   axisLine={false}
                   tickLine={false}
                   width={isMobile ? 32 : 36}
-                  tickFormatter={(v) => `${v}`}
                 />
                 <Tooltip
                   contentStyle={{
@@ -245,35 +297,54 @@ export function WeightView({
                     borderRadius: 12,
                     fontSize: 13,
                     color: palette.tooltipText,
-                    boxShadow: '0 4px 20px rgb(0 0 0 / 0.08)',
                   }}
                   labelFormatter={(_, payload) => {
                     const d = payload?.[0]?.payload?.date
                     return d ? format(parseISO(d), 'd MMM yyyy', { locale: nl }) : ''
                   }}
-                  formatter={(v: number) => [`${formatKg(v)} kg`, '']}
+                  formatter={(v: number, name: string) => {
+                    if (v == null) return [null, '']
+                    const label = name === 'project' ? 'Projectie' : 'Check-in'
+                    return [`${formatKg(v)} kg`, label]
+                  }}
                 />
-                <Area
+                <ReferenceLine
+                  y={WEIGHT_GOAL_KG}
+                  stroke={palette.goal}
+                  strokeDasharray="4 4"
+                  strokeWidth={1.25}
+                  label={{
+                    value: `${WEIGHT_GOAL_KG}`,
+                    position: 'insideTopRight',
+                    fill: palette.goal,
+                    fontSize: 10,
+                  }}
+                />
+                <Line
                   type="monotone"
-                  dataKey="kg"
-                  stroke={palette.line}
+                  dataKey="actual"
+                  stroke={palette.actual}
                   strokeWidth={2.5}
-                  fill="url(#weightFill)"
-                  dot={false}
-                  activeDot={{ r: 5, fill: palette.line, stroke: palette.tooltipBg, strokeWidth: 2 }}
+                  dot={{ r: 3.5, fill: palette.actual, strokeWidth: 0 }}
+                  activeDot={{ r: 5 }}
+                  connectNulls={false}
                 />
-              </AreaChart>
+                <Line
+                  type="linear"
+                  dataKey="project"
+                  stroke={palette.project}
+                  strokeWidth={2}
+                  strokeDasharray="6 5"
+                  dot={false}
+                  connectNulls
+                />
+              </ComposedChart>
             </ResponsiveContainer>
           )}
         </div>
-        {stats?.low != null && stats.high != null && (
-          <p className="text-center text-xs text-[var(--color-muted)]">
-            Range {formatKg(stats.low)} – {formatKg(stats.high)} kg
-          </p>
-        )}
       </Card>
 
-      {/* Add entry — compact */}
+      {/* Weekly check-in */}
       <Card className="overflow-hidden p-0">
         <button
           type="button"
@@ -282,23 +353,27 @@ export function WeightView({
         >
           <span className="flex items-center gap-2">
             <Plus className="h-4 w-4 text-[var(--color-muted)]" />
-            Meting toevoegen
+            Weekgemiddelde toevoegen
           </span>
           <ChevronDown className={`h-4 w-4 text-[var(--color-muted)] transition ${addOpen ? 'rotate-180' : ''}`} />
         </button>
         {addOpen && (
           <div className="border-t border-[var(--color-border)] px-4 py-4">
+            <p className="mb-3 text-xs leading-relaxed text-[var(--color-muted)]">
+              Pak in MacroFactor je weekgemiddelde (of trend weight), noteer die hier. Geen dagelijkse
+              entries nodig.
+            </p>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <div className="flex-1">
-                <label className="mb-1 block text-xs text-[var(--color-muted)]">Datum</label>
+                <label className="mb-1 block text-xs text-[var(--color-muted)]">Datum check-in</label>
                 <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
               </div>
               <div className="w-full sm:w-28">
-                <label className="mb-1 block text-xs text-[var(--color-muted)]">kg</label>
+                <label className="mb-1 block text-xs text-[var(--color-muted)]">kg (avg)</label>
                 <Input
                   type="text"
                   inputMode="decimal"
-                  placeholder="71,5"
+                  placeholder="72,4"
                   value={kg}
                   onChange={(e) => setKg(e.target.value)}
                 />
@@ -311,7 +386,7 @@ export function WeightView({
         )}
       </Card>
 
-      {/* History — collapsed by default */}
+      {/* History */}
       <Card className="overflow-hidden p-0">
         <button
           type="button"
@@ -319,7 +394,7 @@ export function WeightView({
           className="flex w-full items-center justify-between px-4 py-3.5 text-left text-sm font-medium text-[var(--color-text)] hover:bg-[var(--color-surface-overlay)]"
         >
           <span>
-            Geschiedenis
+            Check-ins
             <span className="ml-2 font-normal text-[var(--color-muted)]">({sorted.length})</span>
           </span>
           <ChevronDown className={`h-4 w-4 text-[var(--color-muted)] transition ${historyOpen ? 'rotate-180' : ''}`} />
