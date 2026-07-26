@@ -14,6 +14,7 @@ import {
 import type { DailyEntry } from '../types'
 import {
   OSCILLATION_METRICS,
+  buildAllTimeOscillationReport,
   buildOscillationReport,
   collectMetricSeries,
   currentMonthKey,
@@ -37,9 +38,15 @@ const CHART_METRIC_IDS = [
   'timetable',
 ] as const
 
+type RangeKey = 'month' | 'all'
+
 type CardModel = {
   band: OscillationBand
-  prevLow: number | null
+  /** Comparison baseline (prev month floor, or all-time floor). */
+  compareLow: number | null
+  /** Extra value shown in delta line (e.g. this month's floor in All mode). */
+  compareValue: number | null
+  compareHint: string | null
   series: { label: string; value: number }[]
   delta: number | null
   holdPct: number
@@ -74,11 +81,21 @@ function formatDelta(delta: number, unit: OscillationUnit): string {
   return delta > 0 ? `+${signed}` : `−${signed}`
 }
 
-function floorStatus(delta: number | null): {
-  label: string
-  tone: 'good' | 'bad' | 'muted'
-} {
-  if (delta == null || delta === 0) return { label: 'floor gelijk', tone: 'muted' }
+function floorStatus(
+  delta: number | null,
+  range: RangeKey,
+): { label: string; tone: 'good' | 'bad' | 'muted' } {
+  if (delta == null || delta === 0) {
+    return {
+      label: range === 'all' ? 'op all-time floor' : 'floor gelijk',
+      tone: 'muted',
+    }
+  }
+  if (range === 'all') {
+    return delta > 0
+      ? { label: 'deze maand boven all-time', tone: 'good' }
+      : { label: 'deze maand onder all-time', tone: 'bad' }
+  }
   if (delta > 0) return { label: 'floor omhoog', tone: 'good' }
   return { label: 'floor gezakt', tone: 'bad' }
 }
@@ -89,12 +106,17 @@ function toneClass(tone: 'good' | 'bad' | 'muted') {
   return 'text-[var(--color-muted)]'
 }
 
-function BaselineCard({ card }: { card: CardModel }) {
-  const { band, prevLow, series, delta, holdPct, daysBelow } = card
+function seriesLabel(date: string, range: RangeKey): string {
+  if (range === 'all') return format(parseISO(date), 'd MMM')
+  return format(parseISO(date), 'd/M')
+}
+
+function BaselineCard({ card, range }: { card: CardModel; range: RangeKey }) {
+  const { band, compareLow, compareValue, compareHint, series, delta, holdPct, daysBelow } = card
   const { theme } = useTheme()
   const isMobile = useMediaQuery('(max-width: 767px)')
   const palette = chartPalette(theme)
-  const status = floorStatus(delta)
+  const status = floorStatus(delta, range)
 
   const chartData = series.map((p) => ({ ...p }))
   const vals = series.map((p) => p.value)
@@ -105,6 +127,13 @@ function BaselineCard({ card }: { card: CardModel }) {
     Math.floor((yMin - pad) * 10) / 10,
     Math.ceil((yMax + pad) * 10) / 10,
   ]
+
+  const deltaDetail =
+    range === 'all' && compareValue != null
+      ? `deze maand ${formatOscillationValue(compareValue, band.metric.unit)}`
+      : compareLow != null
+        ? `${compareHint ?? 'was'} ${formatOscillationValue(compareLow, band.metric.unit)}`
+        : null
 
   return (
     <article className="flex flex-col border-b border-[var(--color-border)] py-6 last:border-b-0 sm:border sm:border-[var(--color-border)] sm:rounded-xl sm:px-5 sm:py-5 sm:last:border-b">
@@ -122,7 +151,7 @@ function BaselineCard({ card }: { card: CardModel }) {
           {delta != null && delta !== 0 && (
             <p className="mt-0.5 opacity-90">
               {formatDelta(delta, band.metric.unit)}
-              {prevLow != null ? ` (was ${formatOscillationValue(prevLow, band.metric.unit)})` : ''}
+              {deltaDetail ? ` (${deltaDetail})` : ''}
             </p>
           )}
         </div>
@@ -161,7 +190,7 @@ function BaselineCard({ card }: { card: CardModel }) {
                 axisLine={false}
                 tickLine={false}
                 interval="preserveStartEnd"
-                minTickGap={28}
+                minTickGap={range === 'all' ? 40 : 28}
               />
               <YAxis
                 domain={domain}
@@ -212,48 +241,87 @@ function BaselineCard({ card }: { card: CardModel }) {
 }
 
 export function Charts({ entries }: { entries: DailyEntry[] }) {
+  const [range, setRange] = useState<RangeKey>('month')
   const [monthKey, setMonthKey] = useState(() => currentMonthKey())
 
-  const report = useMemo(() => buildOscillationReport(entries, monthKey), [entries, monthKey])
+  const monthReport = useMemo(
+    () => buildOscillationReport(entries, monthKey),
+    [entries, monthKey],
+  )
   const prevKey = useMemo(
     () => format(subMonths(parseISO(`${monthKey}-01`), 1), 'yyyy-MM'),
     [monthKey],
   )
   const prevReport = useMemo(() => buildOscillationReport(entries, prevKey), [entries, prevKey])
+  const allReport = useMemo(() => buildAllTimeOscillationReport(entries), [entries])
   const inMonth = useMemo(() => monthEntries(entries, monthKey), [entries, monthKey])
 
   const cards = useMemo(() => {
-    const prevMap = new Map(prevReport.bands.map((b) => [b.metric.id, b.low]))
     const built: CardModel[] = []
 
-    for (const id of CHART_METRIC_IDS) {
-      const band = report.bands.find((b) => b.metric.id === id)
-      if (!band || band.low == null) continue
-      const metric = OSCILLATION_METRICS.find((m) => m.id === id)!
-      const series = collectMetricSeries(inMonth, id).map((p) => ({
-        label: p.label,
-        value: p.value,
-      }))
-      const prevLow = prevMap.get(id) ?? null
-      const delta =
-        prevLow != null ? Math.round((band.low - prevLow) * 10) / 10 : null
-      const daysBelow = series.filter((p) => p.value < band.low!).length
-      const holdPct =
-        series.length > 0
-          ? Math.round(((series.length - daysBelow) / series.length) * 100)
-          : 0
+    if (range === 'month') {
+      const prevMap = new Map(prevReport.bands.map((b) => [b.metric.id, b.low]))
+      for (const id of CHART_METRIC_IDS) {
+        const band = monthReport.bands.find((b) => b.metric.id === id)
+        if (!band || band.low == null) continue
+        const metric = OSCILLATION_METRICS.find((m) => m.id === id)!
+        const series = collectMetricSeries(inMonth, id).map((p) => ({
+          label: seriesLabel(p.date, 'month'),
+          value: p.value,
+        }))
+        const prevLow = prevMap.get(id) ?? null
+        const delta =
+          prevLow != null ? Math.round((band.low - prevLow) * 10) / 10 : null
+        const daysBelow = series.filter((p) => p.value < band.low!).length
+        const holdPct =
+          series.length > 0
+            ? Math.round(((series.length - daysBelow) / series.length) * 100)
+            : 0
 
-      built.push({
-        band: { ...band, metric },
-        prevLow,
-        series,
-        delta,
-        holdPct,
-        daysBelow,
-      })
+        built.push({
+          band: { ...band, metric },
+          compareLow: prevLow,
+          compareValue: null,
+          compareHint: 'was',
+          series,
+          delta,
+          holdPct,
+          daysBelow,
+        })
+      }
+    } else {
+      const monthMap = new Map(monthReport.bands.map((b) => [b.metric.id, b.low]))
+      for (const id of CHART_METRIC_IDS) {
+        const band = allReport.bands.find((b) => b.metric.id === id)
+        if (!band || band.low == null) continue
+        const metric = OSCILLATION_METRICS.find((m) => m.id === id)!
+        const series = collectMetricSeries(entries, id).map((p) => ({
+          label: seriesLabel(p.date, 'all'),
+          value: p.value,
+        }))
+        const monthLow = monthMap.get(id) ?? null
+        // Delta = this month's floor vs all-time floor
+        const delta =
+          monthLow != null ? Math.round((monthLow - band.low) * 10) / 10 : null
+        const daysBelow = series.filter((p) => p.value < band.low!).length
+        const holdPct =
+          series.length > 0
+            ? Math.round(((series.length - daysBelow) / series.length) * 100)
+            : 0
+
+        built.push({
+          band: { ...band, metric },
+          compareLow: band.low,
+          compareValue: monthLow,
+          compareHint: 'all-time',
+          series,
+          delta,
+          holdPct,
+          daysBelow,
+        })
+      }
     }
 
-    // Worst first: slipped floors, then most dips below floor, then rising.
     return built.sort((a, b) => {
       const aSlip = a.delta != null && a.delta < 0 ? 1 : 0
       const bSlip = b.delta != null && b.delta < 0 ? 1 : 0
@@ -264,7 +332,7 @@ export function Charts({ entries }: { entries: DailyEntry[] }) {
       if (aRise !== bRise) return aRise - bRise
       return (a.delta ?? 0) - (b.delta ?? 0)
     })
-  }, [report.bands, prevReport.bands, inMonth])
+  }, [range, monthReport.bands, prevReport.bands, allReport.bands, inMonth, entries])
 
   const slipped = cards.filter((c) => c.delta != null && c.delta < 0)
   const rising = cards.filter((c) => c.delta != null && c.delta > 0)
@@ -280,29 +348,7 @@ export function Charts({ entries }: { entries: DailyEntry[] }) {
 
   return (
     <div className="mx-auto max-w-2xl pb-10">
-      <div className="mb-8 flex items-center justify-center gap-1">
-        <button
-          type="button"
-          onClick={() => shiftMonth(-1)}
-          className="rounded-full p-2 text-[var(--color-muted)] transition hover:bg-[var(--color-surface-overlay)] hover:text-[var(--color-text)]"
-          aria-label="Vorige maand"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <span className="min-w-[9.5rem] text-center text-[13px] capitalize tracking-wide text-[var(--color-muted)]">
-          {report.label}
-        </span>
-        <button
-          type="button"
-          onClick={() => shiftMonth(1)}
-          className="rounded-full p-2 text-[var(--color-muted)] transition hover:bg-[var(--color-surface-overlay)] hover:text-[var(--color-text)]"
-          aria-label="Volgende maand"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
-
-      <header className="mb-8 text-center">
+      <header className="mb-6 text-center">
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-muted)]">
           Baselines
         </p>
@@ -314,6 +360,58 @@ export function Charts({ entries }: { entries: DailyEntry[] }) {
         </p>
       </header>
 
+      <div className="mb-6 flex justify-center gap-1">
+        {(
+          [
+            { key: 'month' as const, label: 'Maand' },
+            { key: 'all' as const, label: 'All' },
+          ] as const
+        ).map((r) => (
+          <button
+            key={r.key}
+            type="button"
+            onClick={() => setRange(r.key)}
+            className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition ${
+              range === r.key
+                ? 'bg-[var(--color-text)] text-[var(--color-bg)]'
+                : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
+            }`}
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
+
+      {range === 'month' && (
+        <div className="mb-8 flex items-center justify-center gap-1">
+          <button
+            type="button"
+            onClick={() => shiftMonth(-1)}
+            className="rounded-full p-2 text-[var(--color-muted)] transition hover:bg-[var(--color-surface-overlay)] hover:text-[var(--color-text)]"
+            aria-label="Vorige maand"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="min-w-[9.5rem] text-center text-[13px] capitalize tracking-wide text-[var(--color-muted)]">
+            {monthReport.label}
+          </span>
+          <button
+            type="button"
+            onClick={() => shiftMonth(1)}
+            className="rounded-full p-2 text-[var(--color-muted)] transition hover:bg-[var(--color-surface-overlay)] hover:text-[var(--color-text)]"
+            aria-label="Volgende maand"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {range === 'all' && (
+        <p className="mb-8 text-center text-[13px] text-[var(--color-muted)]">
+          All time · floor vs deze maand ({monthReport.label})
+        </p>
+      )}
+
       {priority && (
         <section className="mb-8 rounded-xl border border-[var(--color-border)] px-4 py-4 sm:px-5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
@@ -323,13 +421,18 @@ export function Charts({ entries }: { entries: DailyEntry[] }) {
             {priority.band.metric.label}
           </p>
           <p className="mt-1 text-sm text-[var(--color-muted)]">
-            {priority.delta != null && priority.delta < 0 ? (
+            {range === 'all' && priority.delta != null && priority.delta < 0 ? (
+              <>
+                Deze maand floor onder all-time ({priority.band.displayLow}). Til terug naar of
+                boven je lifetime floor.
+              </>
+            ) : priority.delta != null && priority.delta < 0 ? (
               <>
                 Floor gezakt naar {priority.band.displayLow}
-                {priority.prevLow != null && (
+                {priority.compareLow != null && (
                   <>
                     {' '}
-                    (was {formatOscillationValue(priority.prevLow, priority.band.metric.unit)})
+                    (was {formatOscillationValue(priority.compareLow, priority.band.metric.unit)})
                   </>
                 )}
                 . Herstel dit niveau voor je iets nieuws jaagt.
@@ -350,7 +453,8 @@ export function Charts({ entries }: { entries: DailyEntry[] }) {
             <p className="mt-3 text-xs text-[var(--color-muted)]">
               {slipped.length > 0 && (
                 <span className="text-[var(--color-bad)]">
-                  Gezakt: {slipped.map((c) => c.band.metric.label).join(', ')}
+                  {range === 'all' ? 'Onder all-time: ' : 'Gezakt: '}
+                  {slipped.map((c) => c.band.metric.label).join(', ')}
                 </span>
               )}
               {slipped.length > 0 && rising.length > 0 && (
@@ -358,7 +462,8 @@ export function Charts({ entries }: { entries: DailyEntry[] }) {
               )}
               {rising.length > 0 && (
                 <span className="text-[var(--color-good)]">
-                  Omhoog: {rising.map((c) => c.band.metric.label).join(', ')}
+                  {range === 'all' ? 'Boven all-time: ' : 'Omhoog: '}
+                  {rising.map((c) => c.band.metric.label).join(', ')}
                 </span>
               )}
             </p>
@@ -368,12 +473,12 @@ export function Charts({ entries }: { entries: DailyEntry[] }) {
 
       {cards.length === 0 ? (
         <p className="py-16 text-center text-sm text-[var(--color-muted)]">
-          Nog te weinig data deze maand voor baselines.
+          Nog te weinig data voor baselines.
         </p>
       ) : (
         <div className="sm:space-y-4">
           {cards.map((card) => (
-            <BaselineCard key={card.band.metric.id} card={card} />
+            <BaselineCard key={card.band.metric.id} card={card} range={range} />
           ))}
         </div>
       )}

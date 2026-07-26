@@ -292,3 +292,22 @@ export function buildOscillationReport(
     bands,
   }
 }
+
+/** All-time floors across every valid entry (same band logic as a month). */
+export function buildAllTimeOscillationReport(entries: DailyEntry[]): {
+  label: string
+  daysWithData: number
+  bands: OscillationBand[]
+} {
+  const valid = entries.filter((e) => isValidDateStr(e.date))
+  const daysWithData = new Set(valid.map((e) => e.date)).size
+  const bands = OSCILLATION_METRICS.map((metric) =>
+    oscillationBandFromValues(metric, collectMetricValues(valid, metric.id)),
+  ).filter((b) => b.low != null && b.high != null)
+
+  return {
+    label: 'All time',
+    daysWithData,
+    bands,
+  }
+}
