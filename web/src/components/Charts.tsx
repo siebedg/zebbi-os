@@ -20,6 +20,7 @@ import {
   formatOscillationValue,
   monthEntries,
   type OscillationBand,
+  type OscillationUnit,
 } from '../lib/oscillation'
 import { useTheme } from '../hooks/useTheme'
 import { useMediaQuery } from '../hooks/useMediaQuery'
@@ -35,6 +36,15 @@ const CHART_METRIC_IDS = [
   'sleepScore',
   'timetable',
 ] as const
+
+type CardModel = {
+  band: OscillationBand
+  prevLow: number | null
+  series: { label: string; value: number }[]
+  delta: number | null
+  holdPct: number
+  daysBelow: number
+}
 
 function chartPalette(theme: 'light' | 'dark') {
   return theme === 'dark'
@@ -58,31 +68,33 @@ function chartPalette(theme: 'light' | 'dark') {
       }
 }
 
-function floorDelta(
-  current: number | null,
-  prev: number | null,
-): { text: string; better: boolean | null } {
-  if (current == null || prev == null) return { text: '—', better: null }
-  const d = Math.round((current - prev) * 10) / 10
-  if (d === 0) return { text: 'floor gelijk', better: null }
-  const better = d > 0
-  const sign = d > 0 ? '+' : ''
-  return { text: `floor ${sign}${d}`, better }
+function formatDelta(delta: number, unit: OscillationUnit): string {
+  const abs = Math.abs(delta)
+  const signed = formatOscillationValue(abs, unit)
+  return delta > 0 ? `+${signed}` : `−${signed}`
 }
 
-function BaselineCard({
-  band,
-  prevLow,
-  series,
-}: {
-  band: OscillationBand
-  prevLow: number | null
-  series: { label: string; value: number }[]
-}) {
+function floorStatus(delta: number | null): {
+  label: string
+  tone: 'good' | 'bad' | 'muted'
+} {
+  if (delta == null || delta === 0) return { label: 'floor gelijk', tone: 'muted' }
+  if (delta > 0) return { label: 'floor omhoog', tone: 'good' }
+  return { label: 'floor gezakt', tone: 'bad' }
+}
+
+function toneClass(tone: 'good' | 'bad' | 'muted') {
+  if (tone === 'good') return 'text-[var(--color-good)]'
+  if (tone === 'bad') return 'text-[var(--color-bad)]'
+  return 'text-[var(--color-muted)]'
+}
+
+function BaselineCard({ card }: { card: CardModel }) {
+  const { band, prevLow, series, delta, holdPct, daysBelow } = card
   const { theme } = useTheme()
   const isMobile = useMediaQuery('(max-width: 767px)')
   const palette = chartPalette(theme)
-  const delta = floorDelta(band.low, prevLow)
+  const status = floorStatus(delta)
 
   const chartData = series.map((p) => ({ ...p }))
   const vals = series.map((p) => p.value)
@@ -94,32 +106,26 @@ function BaselineCard({
     Math.ceil((yMax + pad) * 10) / 10,
   ]
 
-  const daysAtOrAboveFloor =
-    band.low != null ? series.filter((p) => p.value >= band.low!).length : 0
-  const holdPct =
-    series.length > 0 ? Math.round((daysAtOrAboveFloor / series.length) * 100) : 0
-
   return (
     <article className="flex flex-col border-b border-[var(--color-border)] py-6 last:border-b-0 sm:border sm:border-[var(--color-border)] sm:rounded-xl sm:px-5 sm:py-5 sm:last:border-b">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-[var(--color-text)]">{band.metric.label}</h3>
           <p className="mt-0.5 text-xs text-[var(--color-muted)]">
-            {holdPct}% van dagen ≥ floor · {band.samples} samples
+            {daysBelow === 0
+              ? `Elke dag ≥ floor (${series.length})`
+              : `${daysBelow}× onder floor · ${holdPct}% gehouden`}
           </p>
         </div>
-        <p
-          className={`text-xs font-medium tabular-nums ${
-            delta.better === true
-              ? 'text-[var(--color-good)]'
-              : delta.better === false
-                ? 'text-[var(--color-bad)]'
-                : 'text-[var(--color-muted)]'
-          }`}
-        >
-          {delta.text}
-          {delta.better != null ? ' vs vorige maand' : ''}
-        </p>
+        <div className={`text-right text-xs font-medium tabular-nums ${toneClass(status.tone)}`}>
+          <p>{status.label}</p>
+          {delta != null && delta !== 0 && (
+            <p className="mt-0.5 opacity-90">
+              {formatDelta(delta, band.metric.unit)}
+              {prevLow != null ? ` (was ${formatOscillationValue(prevLow, band.metric.unit)})` : ''}
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="mt-4 flex flex-wrap items-end gap-6">
@@ -201,10 +207,6 @@ function BaselineCard({
           </ResponsiveContainer>
         </div>
       )}
-
-      <p className="mt-3 text-xs leading-relaxed text-[var(--color-muted)]">
-        Teal streep = je floor. Til die op — dat is je baseline.
-      </p>
     </article>
   )
 }
@@ -218,41 +220,63 @@ export function Charts({ entries }: { entries: DailyEntry[] }) {
     [monthKey],
   )
   const prevReport = useMemo(() => buildOscillationReport(entries, prevKey), [entries, prevKey])
-
   const inMonth = useMemo(() => monthEntries(entries, monthKey), [entries, monthKey])
 
   const cards = useMemo(() => {
     const prevMap = new Map(prevReport.bands.map((b) => [b.metric.id, b.low]))
-    return CHART_METRIC_IDS.map((id) => {
+    const built: CardModel[] = []
+
+    for (const id of CHART_METRIC_IDS) {
       const band = report.bands.find((b) => b.metric.id === id)
-      if (!band || band.low == null) return null
+      if (!band || band.low == null) continue
       const metric = OSCILLATION_METRICS.find((m) => m.id === id)!
       const series = collectMetricSeries(inMonth, id).map((p) => ({
         label: p.label,
         value: p.value,
       }))
-      return {
+      const prevLow = prevMap.get(id) ?? null
+      const delta =
+        prevLow != null ? Math.round((band.low - prevLow) * 10) / 10 : null
+      const daysBelow = series.filter((p) => p.value < band.low!).length
+      const holdPct =
+        series.length > 0
+          ? Math.round(((series.length - daysBelow) / series.length) * 100)
+          : 0
+
+      built.push({
         band: { ...band, metric },
-        prevLow: prevMap.get(id) ?? null,
+        prevLow,
         series,
-      }
-    }).filter(Boolean) as {
-      band: OscillationBand
-      prevLow: number | null
-      series: { label: string; value: number }[]
-    }[]
+        delta,
+        holdPct,
+        daysBelow,
+      })
+    }
+
+    // Worst first: slipped floors, then most dips below floor, then rising.
+    return built.sort((a, b) => {
+      const aSlip = a.delta != null && a.delta < 0 ? 1 : 0
+      const bSlip = b.delta != null && b.delta < 0 ? 1 : 0
+      if (aSlip !== bSlip) return bSlip - aSlip
+      if (a.daysBelow !== b.daysBelow) return b.daysBelow - a.daysBelow
+      const aRise = a.delta != null && a.delta > 0 ? 1 : 0
+      const bRise = b.delta != null && b.delta > 0 ? 1 : 0
+      if (aRise !== bRise) return aRise - bRise
+      return (a.delta ?? 0) - (b.delta ?? 0)
+    })
   }, [report.bands, prevReport.bands, inMonth])
+
+  const slipped = cards.filter((c) => c.delta != null && c.delta < 0)
+  const rising = cards.filter((c) => c.delta != null && c.delta > 0)
+  const priority = slipped[0] ?? cards.find((c) => c.daysBelow > 0) ?? null
 
   const shiftMonth = (delta: number) => {
     const d =
-      delta < 0 ? subMonths(parseISO(`${monthKey}-01`), 1) : addMonths(parseISO(`${monthKey}-01`), 1)
+      delta < 0
+        ? subMonths(parseISO(`${monthKey}-01`), 1)
+        : addMonths(parseISO(`${monthKey}-01`), 1)
     setMonthKey(format(d, 'yyyy-MM'))
   }
-
-  const rising = cards.filter((c) => c.prevLow != null && c.band.low != null && c.band.low! > c.prevLow)
-  const slipping = cards.filter(
-    (c) => c.prevLow != null && c.band.low != null && c.band.low! < c.prevLow,
-  )
 
   return (
     <div className="mx-auto max-w-2xl pb-10">
@@ -285,23 +309,62 @@ export function Charts({ entries }: { entries: DailyEntry[] }) {
         <h1 className="font-display text-3xl font-medium tracking-tight text-[var(--color-text)] sm:text-4xl">
           Raise the floor
         </h1>
-        <p className="mx-auto mt-2 max-w-md text-sm text-[var(--color-muted)]">
-          Elke kaart toont je herhalende low (floor). Verbeteren = die floor omhoog, niet één keer een
-          piek jagen.
+        <p className="mx-auto mt-2 max-w-sm text-sm text-[var(--color-muted)]">
+          Verbeteren = je herhalende low omhoog. Piek is nice; floor is progress.
         </p>
-        {(rising.length > 0 || slipping.length > 0) && (
-          <p className="mt-3 text-xs text-[var(--color-muted)]">
-            {rising.length > 0 && (
-              <span className="text-[var(--color-good)]">{rising.length} floor↑</span>
-            )}
-            {rising.length > 0 && slipping.length > 0 && <span className="mx-1.5 opacity-40">·</span>}
-            {slipping.length > 0 && (
-              <span className="text-[var(--color-bad)]">{slipping.length} floor↓</span>
-            )}
-            <span className="opacity-60"> vs vorige maand</span>
-          </p>
-        )}
       </header>
+
+      {priority && (
+        <section className="mb-8 rounded-xl border border-[var(--color-border)] px-4 py-4 sm:px-5">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
+            Eerst dit
+          </p>
+          <p className="mt-1.5 text-base font-semibold text-[var(--color-text)]">
+            {priority.band.metric.label}
+          </p>
+          <p className="mt-1 text-sm text-[var(--color-muted)]">
+            {priority.delta != null && priority.delta < 0 ? (
+              <>
+                Floor gezakt naar {priority.band.displayLow}
+                {priority.prevLow != null && (
+                  <>
+                    {' '}
+                    (was {formatOscillationValue(priority.prevLow, priority.band.metric.unit)})
+                  </>
+                )}
+                . Herstel dit niveau voor je iets nieuws jaagt.
+              </>
+            ) : priority.daysBelow > 0 ? (
+              <>
+                {priority.daysBelow} dagen onder floor ({priority.band.displayLow}). Houd dit
+                niveau vast — geen dips.
+              </>
+            ) : (
+              <>
+                Floor staat op {priority.band.displayLow}. Til dit op door vaker boven je huidige
+                low te zitten.
+              </>
+            )}
+          </p>
+          {(slipped.length > 0 || rising.length > 0) && (
+            <p className="mt-3 text-xs text-[var(--color-muted)]">
+              {slipped.length > 0 && (
+                <span className="text-[var(--color-bad)]">
+                  Gezakt: {slipped.map((c) => c.band.metric.label).join(', ')}
+                </span>
+              )}
+              {slipped.length > 0 && rising.length > 0 && (
+                <span className="mx-1.5 opacity-40">·</span>
+              )}
+              {rising.length > 0 && (
+                <span className="text-[var(--color-good)]">
+                  Omhoog: {rising.map((c) => c.band.metric.label).join(', ')}
+                </span>
+              )}
+            </p>
+          )}
+        </section>
+      )}
 
       {cards.length === 0 ? (
         <p className="py-16 text-center text-sm text-[var(--color-muted)]">
@@ -309,8 +372,8 @@ export function Charts({ entries }: { entries: DailyEntry[] }) {
         </p>
       ) : (
         <div className="sm:space-y-4">
-          {cards.map(({ band, prevLow, series }) => (
-            <BaselineCard key={band.metric.id} band={band} prevLow={prevLow} series={series} />
+          {cards.map((card) => (
+            <BaselineCard key={card.band.metric.id} card={card} />
           ))}
         </div>
       )}
