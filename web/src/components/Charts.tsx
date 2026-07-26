@@ -1,176 +1,319 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { addMonths, format, parseISO, subMonths } from 'date-fns'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
   CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
 import type { DailyEntry } from '../types'
+import {
+  OSCILLATION_METRICS,
+  buildOscillationReport,
+  collectMetricSeries,
+  currentMonthKey,
+  formatOscillationValue,
+  monthEntries,
+  type OscillationBand,
+} from '../lib/oscillation'
 import { useTheme } from '../hooks/useTheme'
 import { useMediaQuery } from '../hooks/useMediaQuery'
-import { enrichEntry } from '../lib/sessions'
-import { entryHasData, formatChartLabel, isValidDateStr } from '../lib/utils'
-import { Card, SectionTitle } from './ui'
 
-function ChartBox({ children }: { children: React.ReactElement }) {
-  return (
-    <div className="h-48 w-full sm:h-52" style={{ minHeight: 192 }}>
-      <ResponsiveContainer width="100%" height="100%">
-        {children}
-      </ResponsiveContainer>
-    </div>
-  )
+/** Metrics that matter for raising your floor — same set as oscillation, minus noise. */
+const CHART_METRIC_IDS = [
+  'meditation',
+  'deepWork1',
+  'deepWork2',
+  'deepWork3',
+  'totalWorked',
+  'avgFocus',
+  'sleepScore',
+  'timetable',
+] as const
+
+function chartPalette(theme: 'light' | 'dark') {
+  return theme === 'dark'
+    ? {
+        line: '#a1a1aa',
+        floor: '#2dd4bf',
+        grid: '#27272a',
+        tick: '#71717a',
+        tooltipBg: '#18181b',
+        tooltipBorder: '#3f3f46',
+        tooltipText: '#fafafa',
+      }
+    : {
+        line: '#52525b',
+        floor: '#0d9488',
+        grid: '#f4f4f5',
+        tick: '#a1a1aa',
+        tooltipBg: '#ffffff',
+        tooltipBorder: '#e4e4e7',
+        tooltipText: '#18181b',
+      }
 }
 
-function normalizeSleepScore(score?: number): number | null {
-  if (score == null || Number.isNaN(score)) return null
-  const pct = score <= 1 ? score * 100 : score > 100 ? score / 100 : score
-  return Math.round(Math.min(100, Math.max(0, pct)))
+function floorDelta(
+  current: number | null,
+  prev: number | null,
+): { text: string; better: boolean | null } {
+  if (current == null || prev == null) return { text: '—', better: null }
+  const d = Math.round((current - prev) * 10) / 10
+  if (d === 0) return { text: 'floor gelijk', better: null }
+  const better = d > 0
+  const sign = d > 0 ? '+' : ''
+  return { text: `floor ${sign}${d}`, better }
+}
+
+function BaselineCard({
+  band,
+  prevLow,
+  series,
+}: {
+  band: OscillationBand
+  prevLow: number | null
+  series: { label: string; value: number }[]
+}) {
+  const { theme } = useTheme()
+  const isMobile = useMediaQuery('(max-width: 767px)')
+  const palette = chartPalette(theme)
+  const delta = floorDelta(band.low, prevLow)
+
+  const chartData = series.map((p) => ({ ...p }))
+  const vals = series.map((p) => p.value)
+  const yMin = Math.min(...vals, band.low ?? Infinity)
+  const yMax = Math.max(...vals, band.high ?? -Infinity, band.low ?? 0)
+  const pad = Math.max((yMax - yMin) * 0.15, band.metric.unit === '%' ? 2 : 0.5)
+  const domain: [number, number] = [
+    Math.floor((yMin - pad) * 10) / 10,
+    Math.ceil((yMax + pad) * 10) / 10,
+  ]
+
+  const daysAtOrAboveFloor =
+    band.low != null ? series.filter((p) => p.value >= band.low!).length : 0
+  const holdPct =
+    series.length > 0 ? Math.round((daysAtOrAboveFloor / series.length) * 100) : 0
+
+  return (
+    <article className="flex flex-col border-b border-[var(--color-border)] py-6 last:border-b-0 sm:border sm:border-[var(--color-border)] sm:rounded-xl sm:px-5 sm:py-5 sm:last:border-b">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-[var(--color-text)]">{band.metric.label}</h3>
+          <p className="mt-0.5 text-xs text-[var(--color-muted)]">
+            {holdPct}% van dagen ≥ floor · {band.samples} samples
+          </p>
+        </div>
+        <p
+          className={`text-xs font-medium tabular-nums ${
+            delta.better === true
+              ? 'text-[var(--color-good)]'
+              : delta.better === false
+                ? 'text-[var(--color-bad)]'
+                : 'text-[var(--color-muted)]'
+          }`}
+        >
+          {delta.text}
+          {delta.better != null ? ' vs vorige maand' : ''}
+        </p>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-end gap-6">
+        <div>
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--color-muted)]">
+            Floor
+          </p>
+          <p className="mt-0.5 text-3xl font-semibold tracking-tight tabular-nums text-[var(--color-text)]">
+            {band.displayLow}
+          </p>
+        </div>
+        <div>
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--color-muted)]">
+            High
+          </p>
+          <p className="mt-0.5 text-lg font-medium tabular-nums text-[var(--color-muted)]">
+            {band.displayHigh}
+          </p>
+        </div>
+      </div>
+
+      {chartData.length >= 2 && band.low != null && (
+        <div className="mt-4 h-28 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={chartData}
+              margin={{ top: 6, right: 4, left: isMobile ? -18 : -8, bottom: 0 }}
+            >
+              <CartesianGrid stroke={palette.grid} vertical={false} />
+              <XAxis
+                dataKey="label"
+                tick={{ fill: palette.tick, fontSize: 9 }}
+                axisLine={false}
+                tickLine={false}
+                interval="preserveStartEnd"
+                minTickGap={28}
+              />
+              <YAxis
+                domain={domain}
+                tick={{ fill: palette.tick, fontSize: 9 }}
+                axisLine={false}
+                tickLine={false}
+                width={isMobile ? 28 : 34}
+                tickFormatter={(v) =>
+                  band.metric.unit === 'min' && v >= 60
+                    ? `${Math.round(v / 60)}u`
+                    : String(v)
+                }
+              />
+              <Tooltip
+                contentStyle={{
+                  background: palette.tooltipBg,
+                  border: `1px solid ${palette.tooltipBorder}`,
+                  borderRadius: 10,
+                  fontSize: 12,
+                  color: palette.tooltipText,
+                }}
+                formatter={(v: number) => [
+                  formatOscillationValue(v, band.metric.unit),
+                  band.metric.label,
+                ]}
+              />
+              <ReferenceLine
+                y={band.low}
+                stroke={palette.floor}
+                strokeDasharray="4 3"
+                strokeWidth={1.5}
+              />
+              <Line
+                type="monotone"
+                dataKey="value"
+                stroke={palette.line}
+                strokeWidth={1.75}
+                dot={false}
+                connectNulls
+                isAnimationActive={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      <p className="mt-3 text-xs leading-relaxed text-[var(--color-muted)]">
+        Teal streep = je floor. Til die op — dat is je baseline.
+      </p>
+    </article>
+  )
 }
 
 export function Charts({ entries }: { entries: DailyEntry[] }) {
-  const { theme } = useTheme()
-  const isMobile = useMediaQuery('(max-width: 767px)')
-  const chartMargin = isMobile
-    ? { top: 8, right: 8, left: 0, bottom: 4 }
-    : { top: 12, right: 16, left: 4, bottom: 4 }
-  const yAxisWidth = isMobile ? 36 : 42
+  const [monthKey, setMonthKey] = useState(() => currentMonthKey())
 
-  const chartTheme = useMemo(
-    () =>
-      theme === 'dark'
-        ? {
-            tooltip: {
-              background: '#18181b',
-              border: '1px solid #3f3f46',
-              borderRadius: 12,
-              fontSize: 13,
-              color: '#fafafa',
-            },
-            grid: '#27272a',
-            tick: '#a1a1aa',
-          }
-        : {
-            tooltip: {
-              background: '#ffffff',
-              border: '1px solid #e4e4e7',
-              borderRadius: 12,
-              fontSize: 13,
-              color: '#18181b',
-            },
-            grid: '#f4f4f5',
-            tick: '#71717a',
-          },
-    [theme],
+  const report = useMemo(() => buildOscillationReport(entries, monthKey), [entries, monthKey])
+  const prevKey = useMemo(
+    () => format(subMonths(parseISO(`${monthKey}-01`), 1), 'yyyy-MM'),
+    [monthKey],
   )
+  const prevReport = useMemo(() => buildOscillationReport(entries, prevKey), [entries, prevKey])
 
-  const data = useMemo(() => {
-    return entries
-      .filter((e) => entryHasData(e) && isValidDateStr(e.date))
-      .map(enrichEntry)
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(-45)
-      .map((e) => ({
-        label: formatChartLabel(e.date),
-        sleepHours: e.sleepHours ?? null,
-        sleepScore: normalizeSleepScore(e.sleepScore),
-        meditation: e.meditation ?? null,
-        avgFocus: e.avgFocus ?? null,
-        totalWorked: e.totalHoursWorked ?? e.totalDeepWork ?? null,
-        timetable: e.timetable ?? null,
+  const inMonth = useMemo(() => monthEntries(entries, monthKey), [entries, monthKey])
+
+  const cards = useMemo(() => {
+    const prevMap = new Map(prevReport.bands.map((b) => [b.metric.id, b.low]))
+    return CHART_METRIC_IDS.map((id) => {
+      const band = report.bands.find((b) => b.metric.id === id)
+      if (!band || band.low == null) return null
+      const metric = OSCILLATION_METRICS.find((m) => m.id === id)!
+      const series = collectMetricSeries(inMonth, id).map((p) => ({
+        label: p.label,
+        value: p.value,
       }))
-  }, [entries])
+      return {
+        band: { ...band, metric },
+        prevLow: prevMap.get(id) ?? null,
+        series,
+      }
+    }).filter(Boolean) as {
+      band: OscillationBand
+      prevLow: number | null
+      series: { label: string; value: number }[]
+    }[]
+  }, [report.bands, prevReport.bands, inMonth])
 
-  if (data.length < 2) {
-    return (
-      <Card className="p-5">
-        <p className="text-sm text-[var(--color-muted)]">Nog niet genoeg data voor grafieken (min. 2 dagen).</p>
-      </Card>
-    )
+  const shiftMonth = (delta: number) => {
+    const d =
+      delta < 0 ? subMonths(parseISO(`${monthKey}-01`), 1) : addMonths(parseISO(`${monthKey}-01`), 1)
+    setMonthKey(format(d, 'yyyy-MM'))
   }
 
-  const tick = { fill: chartTheme.tick, fontSize: isMobile ? 10 : 11 }
+  const rising = cards.filter((c) => c.prevLow != null && c.band.low != null && c.band.low! > c.prevLow)
+  const slipping = cards.filter(
+    (c) => c.prevLow != null && c.band.low != null && c.band.low! < c.prevLow,
+  )
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
-      <SectionTitle sub="Laatste ~45 dagen · één metric per grafiek">Grafieken</SectionTitle>
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <Card className="p-3.5 sm:p-4">
-          <p className="mb-0.5 text-sm font-semibold text-[var(--color-text)]">Sleep score</p>
-          <p className="mb-2 text-xs text-[var(--color-muted)]">Whoop / handmatig · %</p>
-          <ChartBox>
-            <AreaChart data={data} margin={chartMargin}>
-              <CartesianGrid stroke={chartTheme.grid} vertical={false} />
-              <XAxis dataKey="label" tick={tick} interval="preserveStartEnd" minTickGap={24} axisLine={false} tickLine={false} />
-              <YAxis domain={[40, 100]} tick={tick} width={yAxisWidth} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={chartTheme.tooltip} formatter={(v: number) => [`${v}%`, 'Score']} />
-              <Area type="monotone" dataKey="sleepScore" stroke="#16a34a" fill={theme === 'dark' ? '#14532d55' : '#dcfce7'} strokeWidth={2} connectNulls dot={false} />
-            </AreaChart>
-          </ChartBox>
-        </Card>
-
-        <Card className="p-3.5 sm:p-4">
-          <p className="mb-0.5 text-sm font-semibold text-[var(--color-text)]">Deep work</p>
-          <p className="mb-2 text-xs text-[var(--color-muted)]">Totaal uren per dag</p>
-          <ChartBox>
-            <BarChart data={data} margin={chartMargin}>
-              <CartesianGrid stroke={chartTheme.grid} vertical={false} />
-              <XAxis dataKey="label" tick={tick} interval="preserveStartEnd" minTickGap={24} axisLine={false} tickLine={false} />
-              <YAxis tick={tick} width={yAxisWidth} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={chartTheme.tooltip} formatter={(v: number) => [`${v}u`, 'Worked']} />
-              <Bar dataKey="totalWorked" fill="#ca8a04" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ChartBox>
-        </Card>
-
-        <Card className="p-3.5 sm:p-4">
-          <p className="mb-0.5 text-sm font-semibold text-[var(--color-text)]">Focus</p>
-          <p className="mb-2 text-xs text-[var(--color-muted)]">Gemiddelde focus %</p>
-          <ChartBox>
-            <AreaChart data={data} margin={chartMargin}>
-              <CartesianGrid stroke={chartTheme.grid} vertical={false} />
-              <XAxis dataKey="label" tick={tick} interval="preserveStartEnd" minTickGap={24} axisLine={false} tickLine={false} />
-              <YAxis domain={[0, 100]} tick={tick} width={yAxisWidth} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={chartTheme.tooltip} formatter={(v: number) => [`${v}%`, 'Focus']} />
-              <Area type="monotone" dataKey="avgFocus" stroke="#2563eb" fill={theme === 'dark' ? '#1e3a8a44' : '#dbeafe'} strokeWidth={2} connectNulls />
-            </AreaChart>
-          </ChartBox>
-        </Card>
-
-        <Card className="p-3.5 sm:p-4">
-          <p className="mb-0.5 text-sm font-semibold text-[var(--color-text)]">Meditatie</p>
-          <p className="mb-2 text-xs text-[var(--color-muted)]">Minuten per dag</p>
-          <ChartBox>
-            <BarChart data={data} margin={chartMargin}>
-              <CartesianGrid stroke={chartTheme.grid} vertical={false} />
-              <XAxis dataKey="label" tick={tick} interval="preserveStartEnd" minTickGap={24} axisLine={false} tickLine={false} />
-              <YAxis tick={tick} width={yAxisWidth} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={chartTheme.tooltip} formatter={(v: number) => [`${v} min`, 'Med']} />
-              <Bar dataKey="meditation" fill="#16a34a" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ChartBox>
-        </Card>
-
-        <Card className="p-3.5 sm:p-4 sm:col-span-2 xl:col-span-1">
-          <p className="mb-0.5 text-sm font-semibold text-[var(--color-text)]">Timetable</p>
-          <p className="mb-2 text-xs text-[var(--color-muted)]">Adherence %</p>
-          <ChartBox>
-            <AreaChart data={data} margin={chartMargin}>
-              <CartesianGrid stroke={chartTheme.grid} vertical={false} />
-              <XAxis dataKey="label" tick={tick} interval="preserveStartEnd" minTickGap={24} axisLine={false} tickLine={false} />
-              <YAxis domain={[0, 100]} tick={tick} width={yAxisWidth} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={chartTheme.tooltip} formatter={(v: number) => [`${v}%`, 'TT']} />
-              <Area type="monotone" dataKey="timetable" stroke="#ca8a04" fill={theme === 'dark' ? '#713f1244' : '#fef9c3'} strokeWidth={2} connectNulls />
-            </AreaChart>
-          </ChartBox>
-        </Card>
+    <div className="mx-auto max-w-2xl pb-10">
+      <div className="mb-8 flex items-center justify-center gap-1">
+        <button
+          type="button"
+          onClick={() => shiftMonth(-1)}
+          className="rounded-full p-2 text-[var(--color-muted)] transition hover:bg-[var(--color-surface-overlay)] hover:text-[var(--color-text)]"
+          aria-label="Vorige maand"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <span className="min-w-[9.5rem] text-center text-[13px] capitalize tracking-wide text-[var(--color-muted)]">
+          {report.label}
+        </span>
+        <button
+          type="button"
+          onClick={() => shiftMonth(1)}
+          className="rounded-full p-2 text-[var(--color-muted)] transition hover:bg-[var(--color-surface-overlay)] hover:text-[var(--color-text)]"
+          aria-label="Volgende maand"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
       </div>
+
+      <header className="mb-8 text-center">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-muted)]">
+          Baselines
+        </p>
+        <h1 className="font-display text-3xl font-medium tracking-tight text-[var(--color-text)] sm:text-4xl">
+          Raise the floor
+        </h1>
+        <p className="mx-auto mt-2 max-w-md text-sm text-[var(--color-muted)]">
+          Elke kaart toont je herhalende low (floor). Verbeteren = die floor omhoog, niet één keer een
+          piek jagen.
+        </p>
+        {(rising.length > 0 || slipping.length > 0) && (
+          <p className="mt-3 text-xs text-[var(--color-muted)]">
+            {rising.length > 0 && (
+              <span className="text-[var(--color-good)]">{rising.length} floor↑</span>
+            )}
+            {rising.length > 0 && slipping.length > 0 && <span className="mx-1.5 opacity-40">·</span>}
+            {slipping.length > 0 && (
+              <span className="text-[var(--color-bad)]">{slipping.length} floor↓</span>
+            )}
+            <span className="opacity-60"> vs vorige maand</span>
+          </p>
+        )}
+      </header>
+
+      {cards.length === 0 ? (
+        <p className="py-16 text-center text-sm text-[var(--color-muted)]">
+          Nog te weinig data deze maand voor baselines.
+        </p>
+      ) : (
+        <div className="sm:space-y-4">
+          {cards.map(({ band, prevLow, series }) => (
+            <BaselineCard key={band.metric.id} band={band} prevLow={prevLow} series={series} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
