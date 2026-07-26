@@ -73,7 +73,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             ) : (
               <Sun className="h-[15px] w-[15px] shrink-0" strokeWidth={1.75} />
             )}
-            <span>Thema</span>
+            <span>{theme === 'light' ? 'Dark' : 'Light'}</span>
           </button>
         </div>
       </aside>
