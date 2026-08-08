@@ -18,7 +18,12 @@ import {
 } from 'recharts'
 import { ChevronDown, Plus, Trash2 } from 'lucide-react'
 import type { WeightEntry } from '../types'
-import { WEIGHT_GOAL_DATE, WEIGHT_GOAL_KG } from '../lib/weightGoal'
+import {
+  WEIGHT_GOAL_DATE,
+  WEIGHT_GOAL_KG,
+  checkWeightSchedule,
+  projectedKgAt,
+} from '../lib/weightGoal'
 import { useTheme } from '../hooks/useTheme'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { Btn, Input } from './ui'
@@ -83,6 +88,7 @@ export function WeightView({
     [entries],
   )
 
+  const planStart = sorted[0] ?? null
   const latest = sorted[sorted.length - 1]
   const previous = sorted.length > 1 ? sorted[sorted.length - 2] : null
 
@@ -104,6 +110,11 @@ export function WeightView({
       ? Math.round((latest.kg - previous.kg) * 10) / 10
       : null
 
+  const schedule =
+    latest && planStart
+      ? checkWeightSchedule(latest.kg, latest.date, planStart.date, planStart.kg)
+      : null
+
   const filtered = useMemo(() => {
     if (range === 'all' || sorted.length === 0) return sorted
     const anchor = sorted[sorted.length - 1]?.date ?? format(new Date(), 'yyyy-MM-dd')
@@ -112,50 +123,66 @@ export function WeightView({
   }, [sorted, range])
 
   /**
-   * Time-scaled chart:
-   * - actual on real check-in timestamps
-   * - project as a gentle line from last check-in → goal date (calendar-proportional)
+   * Fixed plan line: first check-in → goal date.
+   * Actuals sit on top; "op schema" = actual vs that line on the same date.
    */
   const chartData = useMemo(() => {
-    if (filtered.length === 0) return [] as ChartRow[]
+    if (filtered.length === 0 || !planStart) return [] as ChartRow[]
 
-    const rows: ChartRow[] = filtered.map((e) => ({
-      t: parseISO(e.date).getTime(),
-      date: e.date,
-      actual: e.kg,
-      project: null,
-    }))
+    const byDate = new Map<string, ChartRow>()
 
-    const last = filtered[filtered.length - 1]
-    if (last.date >= WEIGHT_GOAL_DATE) return rows
-
-    const t1 = goalDate.getTime()
-
-    // Start projection at last actual (same point, two series meet)
-    rows[rows.length - 1] = {
-      ...rows[rows.length - 1],
-      project: last.kg,
+    const upsert = (dateStr: string, patch: Partial<ChartRow>) => {
+      const prev = byDate.get(dateStr)
+      byDate.set(dateStr, {
+        t: parseISO(dateStr).getTime(),
+        date: dateStr,
+        actual: prev?.actual ?? null,
+        project: prev?.project ?? null,
+        ...patch,
+      })
     }
 
-    rows.push({
-      t: t1,
-      date: WEIGHT_GOAL_DATE,
-      actual: null,
-      project: WEIGHT_GOAL_KG,
-    })
+    // Schedule anchors in view
+    const viewStart = filtered[0].date
+    const scheduleFrom = viewStart < planStart.date ? planStart.date : viewStart
+    if (scheduleFrom <= WEIGHT_GOAL_DATE) {
+      upsert(scheduleFrom, {
+        project: projectedKgAt(scheduleFrom, planStart.date, planStart.kg),
+      })
+    }
 
-    return rows
-  }, [filtered, goalDate])
+    for (const e of filtered) {
+      upsert(e.date, {
+        actual: e.kg,
+        project:
+          e.date <= WEIGHT_GOAL_DATE
+            ? projectedKgAt(e.date, planStart.date, planStart.kg)
+            : null,
+      })
+    }
+
+    if (filtered[filtered.length - 1].date < WEIGHT_GOAL_DATE) {
+      upsert(WEIGHT_GOAL_DATE, { project: WEIGHT_GOAL_KG, actual: null })
+    }
+
+    return [...byDate.values()].sort((a, b) => a.t - b.t)
+  }, [filtered, planStart])
 
   const domain = useMemo(() => {
     const vals = filtered.map((e) => e.kg)
     vals.push(WEIGHT_GOAL_KG)
+    if (planStart) {
+      vals.push(planStart.kg)
+      if (latest) {
+        vals.push(projectedKgAt(latest.date, planStart.date, planStart.kg))
+      }
+    }
     if (vals.length === 0) return [70, 80]
     const lo = Math.min(...vals)
     const hi = Math.max(...vals)
     const pad = 1.2
     return [Math.floor((lo - pad) * 10) / 10, Math.ceil((hi + pad) * 10) / 10]
-  }, [filtered])
+  }, [filtered, planStart, latest])
 
   const add = () => {
     const w = parseFloat(kg.replace(',', '.'))
@@ -172,6 +199,24 @@ export function WeightView({
       return ''
     }
   }
+
+  const scheduleTone =
+    schedule == null
+      ? 'text-[var(--color-muted)]'
+      : schedule.status === 'on'
+        ? 'text-[var(--color-good)]'
+        : schedule.status === 'ahead'
+          ? 'text-[var(--color-good)]'
+          : 'text-[var(--color-bad)]'
+
+  const scheduleLabel =
+    schedule == null
+      ? null
+      : schedule.status === 'on'
+        ? 'Op schema'
+        : schedule.status === 'ahead'
+          ? `${formatKg(Math.abs(schedule.deltaKg))} kg voor`
+          : `${formatKg(Math.abs(schedule.deltaKg))} kg achter`
 
   return (
     <div className="flex min-h-[calc(100dvh-5rem)] flex-col justify-center md:min-h-[calc(100dvh-3rem)]">
@@ -190,6 +235,15 @@ export function WeightView({
               <p className="mt-1.5 text-sm text-[var(--color-muted)]">
                 Laatste check-in · {format(parseISO(latest.date), 'd MMMM yyyy', { locale: nl })}
               </p>
+              {schedule && (
+                <p className={`mt-2 text-sm font-medium ${scheduleTone}`}>
+                  {scheduleLabel}
+                  <span className="font-normal text-[var(--color-muted)]">
+                    {' '}
+                    · schema {formatKg(schedule.expectedKg)} kg
+                  </span>
+                </p>
+              )}
             </>
           ) : (
             <p className="mt-6 text-sm text-[var(--color-muted)]">Nog geen check-in</p>
@@ -231,7 +285,7 @@ export function WeightView({
                 className="w-3 border-t border-dashed"
                 style={{ borderColor: palette.project }}
               />
-              Projected
+              Schema
             </span>
           </div>
           <div className="h-64 w-full sm:h-72">
@@ -278,7 +332,7 @@ export function WeightView({
                     }}
                     formatter={(v: number, name: string) => {
                       if (v == null) return [null, null]
-                      return [`${formatKg(v)} kg`, name === 'project' ? 'Projected' : 'Actual']
+                      return [`${formatKg(v)} kg`, name === 'project' ? 'Schema' : 'Actual']
                     }}
                   />
                   <ReferenceLine
@@ -315,8 +369,8 @@ export function WeightView({
           </div>
         </div>
 
-        {/* Goal */}
-        {latest && remaining != null && (
+        {/* Goal + schedule */}
+        {latest && remaining != null && schedule && (
           <div className="border-t border-[var(--color-border)] pt-4">
             <div className="flex flex-wrap items-end justify-between gap-2">
               <div>
@@ -332,7 +386,17 @@ export function WeightView({
                 <p className="text-xs text-[var(--color-muted)]">{Math.ceil(weeksLeft)} weken</p>
               )}
             </div>
-            <div className="mt-3 grid grid-cols-3 gap-x-4 text-sm">
+            <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-4">
+              <div>
+                <p className="text-[10px] text-[var(--color-muted)]">Schema</p>
+                <p className="font-medium tabular-nums text-[var(--color-text)]">
+                  {formatKg(schedule.expectedKg)} kg
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-[var(--color-muted)]">Vs schema</p>
+                <p className={`font-medium tabular-nums ${scheduleTone}`}>{scheduleLabel}</p>
+              </div>
               <div>
                 <p className="text-[10px] text-[var(--color-muted)]">Nog</p>
                 <p className="font-medium tabular-nums text-[var(--color-text)]">
@@ -347,23 +411,24 @@ export function WeightView({
                     : '—'}
                 </p>
               </div>
-              <div>
-                <p className="text-[10px] text-[var(--color-muted)]">Δ check-in</p>
-                <p
-                  className={`font-medium tabular-nums ${
-                    vsPrev == null
-                      ? 'text-[var(--color-text)]'
-                      : vsPrev > 0
-                        ? 'text-[var(--color-good)]'
-                        : vsPrev < 0
-                          ? 'text-[var(--color-bad)]'
-                          : 'text-[var(--color-text)]'
-                  }`}
-                >
-                  {vsPrev == null ? '—' : `${vsPrev > 0 ? '+' : ''}${formatKg(vsPrev)} kg`}
-                </p>
-              </div>
             </div>
+            {vsPrev != null && (
+              <p className="mt-3 text-xs text-[var(--color-muted)]">
+                Δ check-in{' '}
+                <span
+                  className={
+                    vsPrev > 0
+                      ? 'text-[var(--color-good)]'
+                      : vsPrev < 0
+                        ? 'text-[var(--color-bad)]'
+                        : 'text-[var(--color-text)]'
+                  }
+                >
+                  {vsPrev > 0 ? '+' : ''}
+                  {formatKg(vsPrev)} kg
+                </span>
+              </p>
+            )}
           </div>
         )}
 
@@ -419,26 +484,40 @@ export function WeightView({
             <div className="max-h-56 overflow-y-auto scroll-touch">
               <table className="w-full text-sm">
                 <tbody>
-                  {[...sorted].reverse().map((e) => (
-                    <tr key={e.date} className="border-b border-[var(--color-border)] last:border-0">
-                      <td className="py-2 text-[var(--color-muted)]">
-                        {format(parseISO(e.date), 'd MMM yyyy', { locale: nl })}
-                      </td>
-                      <td className="py-2 text-right font-mono tabular-nums text-[var(--color-text)]">
-                        {formatKg(e.kg)}
-                      </td>
-                      <td className="w-8 py-2 pl-2">
-                        <button
-                          type="button"
-                          onClick={() => onDelete(e.date)}
-                          className="rounded p-1 text-[var(--color-muted)] hover:text-[var(--color-bad)]"
-                          aria-label="Verwijderen"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {[...sorted].reverse().map((e) => {
+                    const rowSchedule = planStart
+                      ? checkWeightSchedule(e.kg, e.date, planStart.date, planStart.kg)
+                      : null
+                    return (
+                      <tr key={e.date} className="border-b border-[var(--color-border)] last:border-0">
+                        <td className="py-2 text-[var(--color-muted)]">
+                          {format(parseISO(e.date), 'd MMM yyyy', { locale: nl })}
+                        </td>
+                        <td className="py-2 text-right font-mono tabular-nums text-[var(--color-text)]">
+                          {formatKg(e.kg)}
+                        </td>
+                        <td className="py-2 pl-3 text-right text-[10px] text-[var(--color-muted)]">
+                          {rowSchedule
+                            ? rowSchedule.status === 'on'
+                              ? 'op schema'
+                              : rowSchedule.status === 'ahead'
+                                ? 'voor'
+                                : 'achter'
+                            : ''}
+                        </td>
+                        <td className="w-8 py-2 pl-2">
+                          <button
+                            type="button"
+                            onClick={() => onDelete(e.date)}
+                            className="rounded p-1 text-[var(--color-muted)] hover:text-[var(--color-bad)]"
+                            aria-label="Verwijderen"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
