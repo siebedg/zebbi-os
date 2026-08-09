@@ -12,7 +12,7 @@ const QUICK_FIELDS = [
   { key: 'meditation', label: 'Meditation' },
   { key: 'gratitude', label: 'Gratitude' },
   { key: 'exercise', label: 'Exercise' },
-  { key: 'totalHoursWorked', label: 'Worked' },
+  { key: 'totalHoursNet', label: 'Worked' },
   { key: 'avgFocus', label: 'Focus' },
 ] as const
 
@@ -62,12 +62,12 @@ export function Dashboard({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Dagen gelogd" value={String(filledCount)} />
         <StatCard
-          label="Worked vandaag"
-          value={entry?.totalHoursWorked != null ? `${entry.totalHoursWorked}u` : '—'}
+          label="Net gewerkt"
+          value={entry?.totalHoursNet != null ? `${entry.totalHoursNet}u` : '—'}
         />
         <StatCard
-          label="Net uren"
-          value={entry?.totalHoursNet != null ? `${entry.totalHoursNet}u` : '—'}
+          label="Bruto"
+          value={entry?.totalHoursWorked != null ? `${entry.totalHoursWorked}u` : '—'}
         />
         <StatCard
           label="Focus"

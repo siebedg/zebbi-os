@@ -12,7 +12,9 @@ import {
   computeWorkTotals,
   emptySession,
   enrichEntry,
+  sessionBreakMinutes,
   sessionDurationHours,
+  sessionGrossHours,
 } from '../lib/sessions'
 import { applyRestDay, isKnownRestDate, isRestDay, REST_STRIPE_BG } from '../lib/restDays'
 import {
@@ -438,12 +440,16 @@ export function DailyEntryForm({
           <div className="space-y-3">
             {sessions.map((s, i) => {
               const collapsed = collapsedDw.has(s.id)
+              const netH = sessionDurationHours(s)
+              const breaks = sessionBreakMinutes(s)
+              const hasClock = Boolean(s.startTime && s.endTime)
+              const hasDur = s.durationHours != null
               const durationLabel =
-                s.startTime && s.endTime
-                  ? `${sessionDurationHours(s).toFixed(2)}u`
-                  : s.durationHours != null
-                    ? `${s.durationHours.toFixed(2)}u`
-                    : '—'
+                hasClock || hasDur
+                  ? breaks > 0
+                    ? `${netH.toFixed(2)}u (−${breaks}m)`
+                    : `${netH.toFixed(2)}u`
+                  : '—'
               const rangeLabel =
                 s.startTime && s.endTime
                   ? `${s.startTime} → ${s.endTime}`
@@ -484,7 +490,7 @@ export function DailyEntryForm({
 
                   {!collapsed && (
                     <>
-                      <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                         <label className="block">
                           <span className="mb-1 block text-sm font-medium text-[var(--color-text)]">
                             Start
@@ -515,7 +521,32 @@ export function DailyEntryForm({
                             })
                           }
                         />
+                        <Input
+                          label="Break (min)"
+                          type="number"
+                          min="0"
+                          value={s.breakMinutes ?? ''}
+                          onChange={(e) => {
+                            const raw = e.target.value
+                            if (raw === '') {
+                              updateSession(s.id, { breakMinutes: undefined })
+                              return
+                            }
+                            const n = parseInt(raw, 10)
+                            updateSession(s.id, {
+                              breakMinutes: Number.isFinite(n) && n > 0 ? n : undefined,
+                            })
+                          }}
+                        />
                       </div>
+                      {hasClock && breaks > 0 && (
+                        <p className="mt-2 text-xs text-[var(--color-muted)]">
+                          Bruto {sessionGrossHours(s).toFixed(2)}u − {breaks}m break ={' '}
+                          <span className="tabular-nums text-[var(--color-text)]">
+                            {netH.toFixed(2)}u net
+                          </span>
+                        </p>
+                      )}
                       {sessions.length > 1 && (
                         <button
                           type="button"
@@ -534,10 +565,21 @@ export function DailyEntryForm({
         )}
 
         {!restDay && (
-          <div className="mt-4 grid gap-4 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-overlay)] p-4 text-sm sm:grid-cols-2">
+          <div className="mt-4 grid gap-4 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-overlay)] p-4 text-sm sm:grid-cols-3">
             <div>
-              <span className="text-[var(--color-muted)]">Total deep work</span>
-              <p className="mt-0.5 text-lg font-semibold tabular-nums">{totals.totalHoursWorked}u</p>
+              <span className="text-[var(--color-muted)]">Net gewerkt</span>
+              <p className="mt-0.5 text-lg font-semibold tabular-nums">{totals.totalHoursNet}u</p>
+            </div>
+            <div>
+              <span className="text-[var(--color-muted)]">Bruto</span>
+              <p className="mt-0.5 text-lg font-semibold tabular-nums text-[var(--color-muted)]">
+                {totals.totalHoursWorked}u
+                {totals.distractionMinutes > 0 && (
+                  <span className="ml-1 text-xs font-normal">
+                    (−{totals.distractionMinutes}m)
+                  </span>
+                )}
+              </p>
             </div>
             <div>
               <span className="text-[var(--color-muted)]">Avg focus</span>

@@ -3,9 +3,12 @@ export interface DeepWorkSession {
   startTime: string
   endTime: string
   focusPercent: number
+  /** Quick breaks inside this block (minutes). Subtracted from wall-clock for net worked. */
+  breakMinutes?: number
+  /** @deprecated free-text; prefer breakMinutes */
   distraction?: string
   description?: string
-  /** When only duration given e.g. "2h 35m" */
+  /** When only duration given e.g. "2h 35m" (treated as gross before break) */
   durationHours?: number
 }
 

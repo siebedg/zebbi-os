@@ -115,7 +115,7 @@ function getMetricValue(e: DailyEntry, metricId: string): number | null {
     return e.sleepScore <= 1 ? e.sleepScore * 100 : e.sleepScore
   }
   if (metricId === 'totalWorked') {
-    const v = e.totalHoursWorked ?? e.totalDeepWork
+    const v = e.totalHoursNet ?? e.totalDeepWork ?? e.totalHoursWorked
     return v != null && v > 0 ? v : null
   }
   const dwMatch = metricId.match(/^deepWork(\d)$/)

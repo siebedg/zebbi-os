@@ -3,7 +3,15 @@ import { SLEEP_SCORE_TRACKED_FROM, VACATION_DATES } from '../types'
 import { applyRestDay, isKnownRestDate, isRestDay } from './restDays'
 import { parseDistractionMinutes, uid } from './utils'
 
-export function sessionDurationHours(session: DeepWorkSession): number {
+function parseTimeToMinutes(time?: string): number | null {
+  if (!time) return null
+  const match = time.match(/^(\d{1,2}):(\d{2})$/)
+  if (!match) return null
+  return parseInt(match[1], 10) * 60 + parseInt(match[2], 10)
+}
+
+/** Wall-clock / declared duration before break subtraction. */
+export function sessionGrossHours(session: DeepWorkSession): number {
   if (session.durationHours != null) return session.durationHours
   const start = parseTimeToMinutes(session.startTime)
   const end = parseTimeToMinutes(session.endTime)
@@ -13,15 +21,32 @@ export function sessionDurationHours(session: DeepWorkSession): number {
   return Math.round((mins / 60) * 100) / 100
 }
 
-function parseTimeToMinutes(time?: string): number | null {
-  if (!time) return null
-  const match = time.match(/^(\d{1,2}):(\d{2})$/)
-  if (!match) return null
-  return parseInt(match[1], 10) * 60 + parseInt(match[2], 10)
+export function sessionGrossMinutes(session: DeepWorkSession): number {
+  return Math.round(sessionGrossHours(session) * 60)
+}
+
+/** Break minutes for a session (explicit field + legacy distraction text). */
+export function sessionBreakMinutes(session: DeepWorkSession): number {
+  const fromField = session.breakMinutes ?? 0
+  const fromLegacy = parseDistractionMinutes(session.distraction)
+  return Math.max(0, fromField + fromLegacy)
+}
+
+/** Actual worked hours = gross − breaks (clamped ≥ 0). */
+export function sessionNetHours(session: DeepWorkSession): number {
+  const gross = sessionGrossHours(session)
+  if (gross <= 0) return 0
+  const net = Math.max(0, gross - sessionBreakMinutes(session) / 60)
+  return Math.round(net * 100) / 100
+}
+
+/** Net duration — used for DW columns, oscillation, and “worked” metrics. */
+export function sessionDurationHours(session: DeepWorkSession): number {
+  return sessionNetHours(session)
 }
 
 export function sessionDurationMinutes(session: DeepWorkSession): number {
-  return Math.round(sessionDurationHours(session) * 60)
+  return Math.round(sessionNetHours(session) * 60)
 }
 
 export interface WorkTotals {
@@ -32,26 +57,29 @@ export interface WorkTotals {
 }
 
 export function computeWorkTotals(sessions: DeepWorkSession[]): WorkTotals {
-  let totalMinutes = 0
+  let grossMinutes = 0
+  let netMinutes = 0
   let weightedFocus = 0
   let distractionMinutes = 0
 
   for (const s of sessions) {
-    const mins = sessionDurationMinutes(s)
-    if (mins <= 0) continue
-    totalMinutes += mins
-    weightedFocus += (s.focusPercent || 0) * mins
-    distractionMinutes += parseDistractionMinutes(s.distraction)
+    const gross = sessionGrossMinutes(s)
+    if (gross <= 0) continue
+    const breaks = sessionBreakMinutes(s)
+    const net = Math.max(0, gross - breaks)
+    grossMinutes += gross
+    netMinutes += net
+    distractionMinutes += breaks
+    weightedFocus += (s.focusPercent || 0) * net
   }
 
-  const totalHoursWorked = Math.round((totalMinutes / 60) * 100) / 100
-  const totalHoursNet =
-    Math.round((totalHoursWorked - distractionMinutes / 60) * 100) / 100
+  const totalHoursWorked = Math.round((grossMinutes / 60) * 100) / 100
+  const totalHoursNet = Math.round((netMinutes / 60) * 100) / 100
 
   return {
     totalHoursWorked,
     totalHoursNet,
-    avgFocus: totalMinutes > 0 ? Math.round(weightedFocus / totalMinutes) : undefined,
+    avgFocus: netMinutes > 0 ? Math.round(weightedFocus / netMinutes) : undefined,
     distractionMinutes,
   }
 }
@@ -67,22 +95,22 @@ export function enrichEntry(entry: DailyEntry): DailyEntry {
   const sessions = e.sessions ?? []
   if (sessions.length > 0) {
     const totals = computeWorkTotals(sessions)
-    const active = sessions.filter((s) => s.startTime && s.endTime)
+    const active = sessions.filter(
+      (s) => (s.startTime && s.endTime) || (s.durationHours != null && s.durationHours > 0),
+    )
     const next = { ...e } as Record<string, unknown>
     for (let i = 1; i <= 6; i++) delete next[`deepWork${i}`]
     active.forEach((s, i) => {
       if (i >= 6) return
-      const hours = sessionDurationHours(s)
+      const hours = sessionNetHours(s)
       if (hours > 0) next[`deepWork${i + 1}`] = hours
     })
-    const totalDw =
-      e.totalDeepWork ?? e.totalHoursWorked ?? totals.totalHoursWorked
     return {
       ...(next as unknown as DailyEntry),
       avgFocus: totals.avgFocus ?? e.avgFocus,
-      totalHoursWorked: totalDw,
+      totalHoursWorked: totals.totalHoursWorked,
       totalHoursNet: totals.totalHoursNet,
-      totalDeepWork: totalDw,
+      totalDeepWork: totals.totalHoursNet,
     }
   }
 

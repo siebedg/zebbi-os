@@ -147,6 +147,16 @@ function parseFocusPercent(line: string): number | undefined {
   return undefined
 }
 
+/** `Break: 25 min` / `Break 25m` / `-25 min` → minutes */
+export function parseBreakMinutesLine(line: string): number | undefined {
+  const trimmed = line.trim()
+  const named = trimmed.match(/^break\s*:?\s*(\d+)\s*(?:m(?:in(?:utes?)?)?)?\s*$/i)
+  if (named) return parseInt(named[1], 10)
+  const minus = trimmed.match(/^-\s*(\d+)\s*(?:m(?:in(?:utes?)?)?)\s*$/i)
+  if (minus) return parseInt(minus[1], 10)
+  return undefined
+}
+
 /** Elk tekstblok (gescheiden door lege regels) = één DW-sessie: tijdregel + focus % */
 export function parseWorkBlocks(text: string): DeepWorkSession[] {
   const sessions: DeepWorkSession[] = []
@@ -165,6 +175,12 @@ export function parseWorkBlocks(text: string): DeepWorkSession[] {
     const pctLine = lines.find((l) => /^\d{1,3}\s*%/.test(l) || /^focus:/i.test(l))
     const focus = pctLine ? parseFocusPercent(pctLine) : undefined
     if (focus != null) session.focusPercent = focus
+    for (const line of lines) {
+      const br = parseBreakMinutesLine(line)
+      if (br != null) {
+        session.breakMinutes = (session.breakMinutes ?? 0) + br
+      }
+    }
     sessions.push(session)
   }
   return sessions
@@ -177,6 +193,16 @@ function parseSingleDayBlock(text: string, ctxYear?: number): ParsedDay {
 
   for (const line of lines) {
     if (/^distraction/i.test(line)) continue
+    const breakMins = parseBreakMinutesLine(line)
+    if (breakMins != null) {
+      if (pendingSession) {
+        pendingSession.breakMinutes = (pendingSession.breakMinutes ?? 0) + breakMins
+      } else if (result.sessions.length > 0) {
+        const last = result.sessions[result.sessions.length - 1]
+        last.breakMinutes = (last.breakMinutes ?? 0) + breakMins
+      }
+      continue
+    }
     if (/^date:/i.test(line)) {
       result.date = parseDateFromHeader(line, ctxYear)
       continue
@@ -277,8 +303,7 @@ function parseSingleDayBlock(text: string, ctxYear?: number): ParsedDay {
     const focus = parseFocusPercent(line)
     if (focus != null && pendingSession) {
       pendingSession.focusPercent = focus
-      result.sessions.push(pendingSession)
-      pendingSession = null
+      // Keep pending open so a following `Break: N min` still attaches
       continue
     }
 
@@ -390,10 +415,17 @@ export function sessionsToNotesText(sessions: DeepWorkSession[]): string {
   return sessions
     .filter((s) => (s.startTime && s.endTime) || s.durationHours)
     .map((s) => {
+      const lines: string[] = []
       if (s.startTime && s.endTime) {
-        return `${s.startTime} --> ${s.endTime}\n${s.focusPercent}%`
+        lines.push(`${s.startTime} --> ${s.endTime}`)
+      } else {
+        lines.push(`Deep work: ${s.durationHours}h`)
       }
-      return `Deep work: ${s.durationHours}h\n${s.focusPercent}%`
+      lines.push(`${s.focusPercent}%`)
+      if (s.breakMinutes != null && s.breakMinutes > 0) {
+        lines.push(`Break: ${s.breakMinutes} min`)
+      }
+      return lines.join('\n')
     })
     .join('\n\n\n')
 }
