@@ -44,10 +44,31 @@ export interface DailyEntry {
   totalDeepWork?: number
 }
 
+export interface ShutdownSection {
+  id: string
+  title: string
+  items: string[]
+}
+
+export interface ShutdownTemplate {
+  id: string
+  name: string
+  introMessage: string
+  encouragement: string
+  timerMinutes: number
+  imageDataUrl?: string
+  imageName?: string
+  killCommand?: string
+  sections: ShutdownSection[]
+  updatedAt?: string
+}
+
 export interface AppState {
   dailyLog: DailyEntry[]
   readingBooks?: ReadingBook[]
   weightLog?: WeightEntry[]
+  shutdownTemplates?: ShutdownTemplate[]
+  activeShutdownTemplateId?: string
   /** Laatste cloud-save timestamp */
   stateUpdatedAt?: string
 }

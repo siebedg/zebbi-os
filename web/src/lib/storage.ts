@@ -1,10 +1,16 @@
 import type { AppState } from '../types'
+import { createDefaultShutdownTemplates, normalizeShutdownTemplate } from './shutdown'
 import { enrichEntry } from './sessions'
 import { isValidDateStr, normalizeImportedRow } from './utils'
 
 const STORAGE_KEY = 'improvement-dashboard-v6'
 
-export const defaultState: AppState = { dailyLog: [], readingBooks: [], weightLog: [] }
+export const defaultState: AppState = {
+  dailyLog: [],
+  readingBooks: [],
+  weightLog: [],
+  shutdownTemplates: createDefaultShutdownTemplates(),
+}
 
 function migrate(raw: Record<string, unknown>): AppState {
   const dailyLog = ((raw.dailyLog as AppState['dailyLog']) ?? [])
@@ -16,8 +22,20 @@ function migrate(raw: Record<string, unknown>): AppState {
     })
   const readingBooks = Array.isArray(raw.readingBooks) ? (raw.readingBooks as AppState['readingBooks']) : []
   const weightLog = Array.isArray(raw.weightLog) ? (raw.weightLog as AppState['weightLog']) : []
+  const shutdownTemplates = Array.isArray(raw.shutdownTemplates)
+    ? raw.shutdownTemplates.map((t) => normalizeShutdownTemplate(t as AppState['shutdownTemplates'][number]))
+    : createDefaultShutdownTemplates()
+  const activeShutdownTemplateId =
+    typeof raw.activeShutdownTemplateId === 'string' ? raw.activeShutdownTemplateId : shutdownTemplates[0]?.id
   const stateUpdatedAt = typeof raw.stateUpdatedAt === 'string' ? raw.stateUpdatedAt : undefined
-  return { dailyLog, readingBooks: readingBooks ?? [], weightLog: weightLog ?? [], stateUpdatedAt }
+  return {
+    dailyLog,
+    readingBooks: readingBooks ?? [],
+    weightLog: weightLog ?? [],
+    shutdownTemplates,
+    activeShutdownTemplateId,
+    stateUpdatedAt,
+  }
 }
 
 export function loadState(): AppState {

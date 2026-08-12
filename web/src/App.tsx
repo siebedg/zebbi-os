@@ -8,6 +8,7 @@ import { Charts } from './components/Charts'
 import { TrendView } from './components/TrendView'
 import { ReadingView } from './components/ReadingView'
 import { WeightView } from './components/WeightView'
+import { ShutdownView } from './components/ShutdownView'
 import { AuthGate } from './components/AuthGate'
 import { WhoopPanel } from './components/WhoopPanel'
 import {
@@ -87,7 +88,17 @@ function MonthPage({ entries }: { entries: import('./types').DailyEntry[] }) {
 }
 
 function AppShell() {
-  const { ready, state, saveReadingBook, deleteReadingBook, upsertWeight, deleteWeight } = useStore()
+  const {
+    ready,
+    state,
+    saveReadingBook,
+    deleteReadingBook,
+    upsertWeight,
+    deleteWeight,
+    saveShutdownTemplate,
+    deleteShutdownTemplate,
+    setActiveShutdownTemplate,
+  } = useStore()
 
   if (!ready) return <Loading />
 
@@ -117,6 +128,18 @@ function AppShell() {
               entries={state.weightLog ?? []}
               onUpsert={upsertWeight}
               onDelete={deleteWeight}
+            />
+          }
+        />
+        <Route
+          path="/shutdown"
+          element={
+            <ShutdownView
+              templates={state.shutdownTemplates ?? []}
+              activeTemplateId={state.activeShutdownTemplateId}
+              onSaveTemplate={saveShutdownTemplate}
+              onDeleteTemplate={deleteShutdownTemplate}
+              onSetActiveTemplate={setActiveShutdownTemplate}
             />
           }
         />

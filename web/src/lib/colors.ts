@@ -2,7 +2,7 @@ import type { DailyEntry } from '../types'
 import { SLEEP_SCORE_TRACKED_FROM, VACATION_DATES } from '../types'
 import { enrichEntry } from './sessions'
 import { formatTime12 } from './utils'
-import type { Theme } from './theme'
+import type { IndicatorMode, Theme } from './theme'
 import { isRestDay, REST_STRIPE_BG, REST_WORK_FIELD_SET } from './restDays'
 
 export type ScoreLevel = 'excellent' | 'good' | 'ok' | 'poor' | 'empty' | 'bool-yes' | 'bool-no'
@@ -84,6 +84,40 @@ export function getRestStyle(theme: Theme): CellStyle {
     : { level: 'ok', bg: '#f4f4f5', text: '#71717a' }
 }
 
+function neutralLevels(theme: Theme): Record<ScoreLevel, CellStyle> {
+  if (theme === 'dark') {
+    return {
+      excellent: { level: 'excellent', bg: '#52525b', text: '#fafafa' },
+      good: { level: 'good', bg: '#3f3f46', text: '#e4e4e7' },
+      ok: { level: 'ok', bg: '#27272a', text: '#d4d4d8' },
+      poor: { level: 'poor', bg: '#18181b', text: '#a1a1aa' },
+      empty: { level: 'empty', bg: '#09090b', text: '#71717a' },
+      'bool-yes': { level: 'bool-yes', bg: '#52525b', text: '#fafafa' },
+      'bool-no': { level: 'bool-no', bg: '#27272a', text: '#a1a1aa' },
+    }
+  }
+  return {
+    excellent: { level: 'excellent', bg: '#d4d4d8', text: '#18181b' },
+    good: { level: 'good', bg: '#e4e4e7', text: '#27272a' },
+    ok: { level: 'ok', bg: '#f4f4f5', text: '#52525b' },
+    poor: { level: 'poor', bg: '#fafafa', text: '#a1a1aa' },
+    empty: { level: 'empty', bg: '#f4f4f5', text: '#a1a1aa' },
+    'bool-yes': { level: 'bool-yes', bg: '#d4d4d8', text: '#18181b' },
+    'bool-no': { level: 'bool-no', bg: '#fafafa', text: '#a1a1aa' },
+  }
+}
+
+function neutralSurface(theme: Theme, tier: 'low' | 'mid' | 'high'): CellStyle {
+  if (theme === 'dark') {
+    if (tier === 'high') return { level: 'ok', bg: '#52525b', text: '#fafafa' }
+    if (tier === 'mid') return { level: 'ok', bg: '#3f3f46', text: '#d4d4d8' }
+    return { level: 'empty', bg: '#27272a', text: '#a1a1aa' }
+  }
+  if (tier === 'high') return { level: 'ok', bg: '#d4d4d8', text: '#18181b' }
+  if (tier === 'mid') return { level: 'ok', bg: '#e4e4e7', text: '#52525b' }
+  return { level: 'empty', bg: '#f4f4f5', text: '#a1a1aa' }
+}
+
 function scoreLevels(theme: Theme): Record<ScoreLevel, CellStyle> {
   if (theme === 'dark') {
     return {
@@ -131,23 +165,40 @@ export function getVacationZone(field: string): 'blue' | 'white' | 'red' | null 
   return null
 }
 
-export function getCellStyle(field: string, value: unknown, entry?: DailyEntry, theme: Theme = 'light'): CellStyle {
-  const LEVELS = scoreLevels(theme)
+export function getCellStyle(
+  field: string,
+  value: unknown,
+  entry?: DailyEntry,
+  theme: Theme = 'light',
+  indicatorMode: IndicatorMode = 'color',
+): CellStyle {
+  const neutral = indicatorMode === 'neutral'
+  const LEVELS = neutral ? neutralLevels(theme) : scoreLevels(theme)
 
   if (entry && isRestDay(entry) && REST_WORK_FIELD_SET.has(field)) {
+    if (neutral) return neutralSurface(theme, 'mid')
     return { level: 'good', bg: REST_STRIPE_BG, text: '#ffffff' }
   }
 
   if (field === 'wakeTime' || field === 'bedTime') {
-    if (entry && isVacationDay(entry)) return VACATION_BLUE_STYLE
+    if (entry && isVacationDay(entry)) {
+      return neutral ? neutralSurface(theme, 'mid') : VACATION_BLUE_STYLE
+    }
     return timeNeutralStyle(theme)
   }
   if (DEEP_WORK_FIELDS.has(field)) {
-    if (entry && isVacationDay(entry)) return VACATION_RED_STYLE
-    return deepWorkStyle(theme)
+    if (entry && isVacationDay(entry)) {
+      return neutral ? neutralSurface(theme, 'high') : VACATION_RED_STYLE
+    }
+    return neutral ? neutralSurface(theme, 'mid') : deepWorkStyle(theme)
   }
 
   if (entry && isVacationDay(entry)) {
+    if (neutral) {
+      const zone = getVacationZone(field)
+      if (zone === 'white') return neutralSurface(theme, 'low')
+      return neutralSurface(theme, zone === 'red' ? 'high' : 'mid')
+    }
     const zone = getVacationZone(field)
     if (zone === 'blue') return VACATION_BLUE_STYLE
     if (zone === 'white') return VACATION_WHITE_STYLE

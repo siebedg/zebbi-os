@@ -27,6 +27,12 @@
   --color-toggle-knob: #ffffff;
   --color-toggle-checked-bg: #dcfce7;
   --color-toggle-checked-border: #bbf7d0;
+  --color-sidebar-bg: #111111;
+  --color-sidebar-border: rgba(255, 255, 255, 0.08);
+  --color-sidebar-text: #fafafa;
+  --color-sidebar-muted: #a1a1aa;
+  --color-sidebar-active: rgba(255, 255, 255, 0.1);
+  --color-glow: rgba(251, 191, 36, 0.12);
 }
 
 html.dark {
@@ -54,6 +60,63 @@ html.dark {
   --color-toggle-knob: #fafafa;
   --color-toggle-checked-bg: #14532d33;
   --color-toggle-checked-border: #166534;
+  --color-sidebar-bg: #0c0a09;
+  --color-sidebar-border: rgba(255, 255, 255, 0.07);
+  --color-sidebar-text: #fafaf9;
+  --color-sidebar-muted: #a8a29e;
+  --color-sidebar-active: rgba(255, 255, 255, 0.08);
+  --color-glow: rgba(251, 191, 36, 0.15);
+}
+
+/* Graphite + amber */
+html[data-palette='graphite'] {
+  --color-accent: #d97706;
+  --color-accent-soft: #fffbeb;
+  --color-sidebar-bg: #141210;
+  --color-glow: rgba(217, 119, 6, 0.14);
+}
+html.dark[data-palette='graphite'] {
+  --color-accent: #fbbf24;
+  --color-accent-soft: #422006;
+  --color-bg: #0a0908;
+  --color-surface: #161412;
+  --color-surface-overlay: #222018;
+  --color-sidebar-bg: #0f0d0b;
+  --color-glow: rgba(251, 191, 36, 0.12);
+}
+
+/* Espresso + olive */
+html[data-palette='espresso'] {
+  --color-accent: #65a30d;
+  --color-accent-soft: #ecfccb;
+  --color-sidebar-bg: #1c1917;
+  --color-glow: rgba(101, 163, 13, 0.12);
+}
+html.dark[data-palette='espresso'] {
+  --color-accent: #a3e635;
+  --color-accent-soft: #1a2e05;
+  --color-bg: #0c0a09;
+  --color-surface: #1c1917;
+  --color-surface-overlay: #292524;
+  --color-sidebar-bg: #141210;
+  --color-glow: rgba(163, 230, 53, 0.1);
+}
+
+/* Ink + rose */
+html[data-palette='ink'] {
+  --color-accent: #e11d48;
+  --color-accent-soft: #fff1f2;
+  --color-sidebar-bg: #0f172a;
+  --color-glow: rgba(225, 29, 72, 0.1);
+}
+html.dark[data-palette='ink'] {
+  --color-accent: #fb7185;
+  --color-accent-soft: #4c0519;
+  --color-bg: #020617;
+  --color-surface: #0f172a;
+  --color-surface-overlay: #1e293b;
+  --color-sidebar-bg: #020617;
+  --color-glow: rgba(251, 113, 133, 0.12);
 }
 
 @layer base {
@@ -71,7 +134,9 @@ html.dark {
     min-height: 100vh;
     min-height: 100dvh;
     font-family: var(--font-sans);
-    background: var(--color-bg);
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -20%, var(--color-glow), transparent 55%),
+      var(--color-bg);
     color: var(--color-text);
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;

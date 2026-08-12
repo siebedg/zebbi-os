@@ -1,22 +1,43 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
-import { applyTheme, getStoredTheme, type Theme } from '../lib/theme'
+import {
+  applyIndicatorMode,
+  applyPalette,
+  applyTheme,
+  bootstrapTheme,
+  type IndicatorMode,
+  type PaletteId,
+  type Theme,
+} from '../lib/theme'
 
 const ThemeContext = createContext<{
   theme: Theme
+  palette: PaletteId
+  indicatorMode: IndicatorMode
   toggleTheme: () => void
   setTheme: (t: Theme) => void
+  setPalette: (p: PaletteId) => void
+  setIndicatorMode: (m: IndicatorMode) => void
 } | null>(null)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    const t = getStoredTheme()
-    applyTheme(t)
-    return t
-  })
+  const boot = bootstrapTheme()
+  const [theme, setThemeState] = useState<Theme>(boot.theme)
+  const [palette, setPaletteState] = useState<PaletteId>(boot.palette)
+  const [indicatorMode, setIndicatorModeState] = useState<IndicatorMode>(boot.indicatorMode)
 
   const setTheme = (t: Theme) => {
     applyTheme(t)
     setThemeState(t)
+  }
+
+  const setPalette = (p: PaletteId) => {
+    applyPalette(p)
+    setPaletteState(p)
+  }
+
+  const setIndicatorMode = (m: IndicatorMode) => {
+    applyIndicatorMode(m)
+    setIndicatorModeState(m)
   }
 
   const toggleTheme = () => {
@@ -28,7 +49,19 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>{children}</ThemeContext.Provider>
+    <ThemeContext.Provider
+      value={{
+        theme,
+        palette,
+        indicatorMode,
+        toggleTheme,
+        setTheme,
+        setPalette,
+        setIndicatorMode,
+      }}
+    >
+      {children}
+    </ThemeContext.Provider>
   )
 }
 

@@ -25,7 +25,7 @@ export function Dashboard({
   filledCount: number
   onGoEntry: () => void
 }) {
-  const { theme } = useTheme()
+  const { theme, indicatorMode } = useTheme()
   const today = todayISO()
   const entry = todayEntry ? enrichEntry(todayEntry) : undefined
 
@@ -79,10 +79,9 @@ export function Dashboard({
         <h2 className="mb-4 text-base font-semibold">Status vandaag</h2>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {QUICK_FIELDS.map(({ key, label }) => {
-            void theme
             const val = entry?.[key as keyof DailyEntry]
             const done = val != null && val !== ''
-            const style = done ? getCellStyle(key, val) : null
+            const style = done ? getCellStyle(key, val, entry, theme, indicatorMode) : null
             return (
               <div
                 key={key}

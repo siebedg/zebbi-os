@@ -1,0 +1,99 @@
+import type { ShutdownTemplate } from '../types'
+import { uid } from './utils'
+
+function section(title: string, items: string[]) {
+  return { id: uid(), title, items }
+}
+
+export function createDefaultShutdownTemplates(): ShutdownTemplate[] {
+  const now = new Date().toISOString()
+  return [
+    {
+      id: uid(),
+      name: 'Daily shutdown',
+      introMessage: 'Als je alle stappen doorneemt voel je je altijd fulfilled en oprecht euphoric. Liefs, Siebe.',
+      encouragement: 'Start rustig. Kill noise first, then close the day well.',
+      timerMinutes: 15,
+      killCommand: 'powershell -ExecutionPolicy Bypass -File ".\\tools\\zebbi-shutdown-kill.ps1"',
+      sections: [
+        section('Social close-out', ['Reply to all people in Instagram & Messenger']),
+        section('Before anything else', [
+          'Take your supplements NOW before you continue',
+          'Plan tomorrow',
+          'Output Zebbi',
+        ]),
+        section('Intention + remove friction', [
+          'Intention + Timetable / Google Calendar',
+          'Remove friction (War Map, To-do, V1.1, timer, work)',
+          'Turn computer in greyscale',
+        ]),
+        section('Body', ['Take yoga mat and do some yoga with Bend']),
+      ],
+      updatedAt: now,
+    },
+    {
+      id: uid(),
+      name: 'Condensed shutdown',
+      introMessage: 'Korte versie voor avonden waarop je wel wilt afsluiten maar niet uitrollen.',
+      encouragement: 'Short, clean, no excuses.',
+      timerMinutes: 7,
+      killCommand: 'powershell -ExecutionPolicy Bypass -File ".\\tools\\zebbi-shutdown-kill.ps1"',
+      sections: [
+        section('Must do', [
+          'Reply to urgent messages',
+          'Plan tomorrow',
+          'Set first work block up',
+        ]),
+        section('Reset', ['Take supplements', 'Greyscale + yoga mat']),
+      ],
+      updatedAt: now,
+    },
+  ]
+}
+
+export function normalizeShutdownTemplate(
+  value: Partial<ShutdownTemplate>,
+  fallback?: ShutdownTemplate,
+): ShutdownTemplate {
+  const base = fallback ?? createDefaultShutdownTemplates()[0]
+  return {
+    id: value.id || base.id || uid(),
+    name: value.name?.trim() || base.name,
+    introMessage: value.introMessage?.trim() || base.introMessage,
+    encouragement: value.encouragement?.trim() || base.encouragement,
+    timerMinutes:
+      typeof value.timerMinutes === 'number' && Number.isFinite(value.timerMinutes)
+        ? Math.max(1, Math.min(60, Math.round(value.timerMinutes)))
+        : base.timerMinutes,
+    imageDataUrl: value.imageDataUrl || base.imageDataUrl,
+    imageName: value.imageName || base.imageName,
+    killCommand: value.killCommand?.trim() || base.killCommand,
+    sections:
+      value.sections
+        ?.map((sectionValue, idx) => ({
+          id: sectionValue.id || `${base.id}-section-${idx + 1}`,
+          title: sectionValue.title?.trim() || `Section ${idx + 1}`,
+          items: (sectionValue.items ?? []).map((item) => item.trim()).filter(Boolean),
+        }))
+        .filter((sectionValue) => sectionValue.items.length > 0) ?? base.sections,
+    updatedAt: value.updatedAt || base.updatedAt || new Date().toISOString(),
+  }
+}
+
+export function makeShutdownQrPayload(template: ShutdownTemplate, startedAt: number, runId: string): string {
+  return JSON.stringify({
+    app: 'zebbi-os',
+    type: 'shutdown',
+    templateId: template.id,
+    templateName: template.name,
+    startedAt,
+    runId,
+  })
+}
+
+export function formatMmSs(totalSeconds: number): string {
+  const safe = Math.max(0, totalSeconds)
+  const mm = Math.floor(safe / 60)
+  const ss = safe % 60
+  return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
+}

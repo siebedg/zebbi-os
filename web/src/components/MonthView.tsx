@@ -58,7 +58,7 @@ export function MonthView({
   onSelectDate?: (date: string) => void
 }) {
   const [cursor, setCursor] = useState(() => clampVisibleMonth(new Date()))
-  const { theme } = useTheme()
+  const { theme, indicatorMode } = useTheme()
   const isMobile = useMediaQuery('(max-width: 767px)')
 
   const canGoPrev = isAfter(cursor, FIRST_VISIBLE_MONTH)
@@ -250,7 +250,7 @@ export function MonthView({
                     }
 
                     const val = getEntryField(entry, col.key)
-                    const style = getCellStyle(col.key, val, entry, theme)
+                    const style = getCellStyle(col.key, val, entry, theme, indicatorMode)
                     const display = formatFieldValue(col.key, val, entry)
                     const zone = isVacation ? getVacationZone(col.key) : null
                     const flushBand = zone || DEEP_WORK_FIELDS.has(col.key)
@@ -289,7 +289,7 @@ export function MonthView({
                 const rawVal = columnAvgValues[col.key]
                 const style =
                   rawVal != null
-                    ? getCellStyle(col.key, rawVal, undefined, theme)
+                    ? getCellStyle(col.key, rawVal, undefined, theme, indicatorMode)
                     : { bg: 'transparent', text: 'var(--color-muted)' }
                 const flushBand = DEEP_WORK_FIELDS.has(col.key)
                 return (

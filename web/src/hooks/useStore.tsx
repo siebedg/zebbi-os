@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import type { AppState, DailyEntry, ReadingBook, WeightEntry } from '../types'
+import type { AppState, DailyEntry, ReadingBook, ShutdownTemplate, WeightEntry } from '../types'
+import { createDefaultShutdownTemplates, normalizeShutdownTemplate } from '../lib/shutdown'
 import { enrichEntry } from '../lib/sessions'
 import { loadAllBundledMonths, loadSeedData, loadState, saveState } from '../lib/storage'
 import {
@@ -31,6 +32,9 @@ type Store = {
   deleteReadingBook: (id: string) => void
   upsertWeight: (entry: WeightEntry) => void
   deleteWeight: (date: string) => void
+  saveShutdownTemplate: (template: ShutdownTemplate) => void
+  deleteShutdownTemplate: (id: string) => void
+  setActiveShutdownTemplate: (id: string) => void
   refreshFromCloud: () => Promise<void>
 }
 
@@ -128,7 +132,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setSyncError('Cloud sync geweigerd')
       }
 
-      let base: AppState = { dailyLog: [], readingBooks: [], weightLog: [] }
+      let base: AppState = {
+        dailyLog: [],
+        readingBooks: [],
+        weightLog: [],
+        shutdownTemplates: createDefaultShutdownTemplates(),
+      }
 
       if (!remoteBlocked && remoteResult.state && remoteResult.state.dailyLog.length > 0) {
         base = remoteResult.state
@@ -147,17 +156,32 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       let weightLog = mergeWeightLog(
         SEED_WEIGHT_LOG,
         mergeAppState(
-          { dailyLog: [], readingBooks: [], weightLog: local.weightLog ?? [] },
+          {
+            dailyLog: [],
+            readingBooks: [],
+            weightLog: local.weightLog ?? [],
+            shutdownTemplates: local.shutdownTemplates ?? createDefaultShutdownTemplates(),
+          },
           remoteBlocked ? {} : remoteResult.state ?? {},
         ).weightLog ?? [],
       )
 
       const merged = mergeAppState(
-        { dailyLog: log, readingBooks: [], weightLog },
+        { dailyLog: log, readingBooks: [], weightLog, shutdownTemplates: base.shutdownTemplates },
         mergeAppState(
           remoteBlocked
-            ? { dailyLog: [], readingBooks: [], weightLog: [] }
-            : remoteResult.state ?? { dailyLog: [], readingBooks: [], weightLog: [] },
+            ? {
+                dailyLog: [],
+                readingBooks: [],
+                weightLog: [],
+                shutdownTemplates: createDefaultShutdownTemplates(),
+              }
+            : remoteResult.state ?? {
+                dailyLog: [],
+                readingBooks: [],
+                weightLog: [],
+                shutdownTemplates: createDefaultShutdownTemplates(),
+              },
           local,
         ),
       )
@@ -296,6 +320,54 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [commit],
   )
 
+  const saveShutdownTemplate = useCallback(
+    (template: ShutdownTemplate) => {
+      const stamped = normalizeShutdownTemplate({
+        ...template,
+        updatedAt: new Date().toISOString(),
+      })
+      commit((prev) => ({
+        ...prev,
+        shutdownTemplates: [
+          ...((prev.shutdownTemplates ?? createDefaultShutdownTemplates()).filter(
+            (existing) => existing.id !== stamped.id,
+          )),
+          stamped,
+        ].sort((a, b) => a.name.localeCompare(b.name)),
+        activeShutdownTemplateId: stamped.id,
+      }))
+    },
+    [commit],
+  )
+
+  const deleteShutdownTemplate = useCallback(
+    (id: string) => {
+      commit((prev) => {
+        const remaining = (prev.shutdownTemplates ?? []).filter((template) => template.id !== id)
+        const fallback = remaining.length > 0 ? remaining : createDefaultShutdownTemplates()
+        return {
+          ...prev,
+          shutdownTemplates: fallback,
+          activeShutdownTemplateId:
+            prev.activeShutdownTemplateId === id
+              ? fallback[0]?.id
+              : prev.activeShutdownTemplateId ?? fallback[0]?.id,
+        }
+      })
+    },
+    [commit],
+  )
+
+  const setActiveShutdownTemplate = useCallback(
+    (id: string) => {
+      commit((prev) => ({
+        ...prev,
+        activeShutdownTemplateId: id,
+      }))
+    },
+    [commit],
+  )
+
   const todayEntry = useMemo(
     () => state.dailyLog.find((e) => e.date === todayISO()),
     [state.dailyLog],
@@ -322,6 +394,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       deleteReadingBook,
       upsertWeight,
       deleteWeight,
+      saveShutdownTemplate,
+      deleteShutdownTemplate,
+      setActiveShutdownTemplate,
       refreshFromCloud: pullFromCloud,
     }),
     [
@@ -339,6 +414,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       deleteReadingBook,
       upsertWeight,
       deleteWeight,
+      saveShutdownTemplate,
+      deleteShutdownTemplate,
+      setActiveShutdownTemplate,
       pullFromCloud,
     ],
   )

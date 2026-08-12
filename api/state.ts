@@ -8,6 +8,8 @@ type StoredState = {
   dailyLog: unknown[]
   readingBooks?: unknown[]
   weightLog?: unknown[]
+  shutdownTemplates?: unknown[]
+  activeShutdownTemplateId?: string
   savedAt?: string
 }
 
@@ -69,7 +71,20 @@ function mergeStored(existing: StoredState | null, incoming: StoredState): Store
     (incoming.weightLog ?? []) as Record<string, unknown>[],
     'date',
   )
-  return { dailyLog, readingBooks, weightLog, savedAt: new Date().toISOString() }
+  const shutdownTemplates = mergeById(
+    (existing.shutdownTemplates ?? []) as Record<string, unknown>[],
+    (incoming.shutdownTemplates ?? []) as Record<string, unknown>[],
+    'id',
+  )
+  return {
+    dailyLog,
+    readingBooks,
+    weightLog,
+    shutdownTemplates,
+    activeShutdownTemplateId:
+      incoming.activeShutdownTemplateId ?? existing.activeShutdownTemplateId,
+    savedAt: new Date().toISOString(),
+  }
 }
 
 async function readKv(): Promise<StoredState | null> {
@@ -133,6 +148,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           dailyLog: [],
           readingBooks: [],
           weightLog: [],
+          shutdownTemplates: [],
+          activeShutdownTemplateId: null,
           savedAt: null,
           storage,
         })
@@ -141,6 +158,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         dailyLog: state.dailyLog ?? [],
         readingBooks: state.readingBooks ?? [],
         weightLog: state.weightLog ?? [],
+        shutdownTemplates: state.shutdownTemplates ?? [],
+        activeShutdownTemplateId: state.activeShutdownTemplateId ?? null,
         savedAt: state.savedAt ?? null,
         storage,
       })
@@ -161,6 +180,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         dailyLog: body.dailyLog,
         readingBooks: Array.isArray(body.readingBooks) ? body.readingBooks : [],
         weightLog: Array.isArray(body.weightLog) ? body.weightLog : [],
+        shutdownTemplates: Array.isArray(body.shutdownTemplates) ? body.shutdownTemplates : [],
+        activeShutdownTemplateId:
+          typeof body.activeShutdownTemplateId === 'string' ? body.activeShutdownTemplateId : undefined,
       })
       const { ok, storage } = await writeState(merged)
       if (!ok) {

@@ -1,4 +1,5 @@
-import type { AppState, DailyEntry, ReadingBook, WeightEntry } from '../types'
+import type { AppState, DailyEntry, ReadingBook, ShutdownTemplate, WeightEntry } from '../types'
+import { createDefaultShutdownTemplates, normalizeShutdownTemplate } from './shutdown'
 import { enrichEntry } from './sessions'
 import { mergeByUpdatedAt } from './utils'
 
@@ -28,6 +29,18 @@ export function mergeWeightLog(a: WeightEntry[], b: WeightEntry[]): WeightEntry[
   return [...map.values()].sort((x, y) => x.date.localeCompare(y.date))
 }
 
+export function mergeShutdownTemplates(a: ShutdownTemplate[], b: ShutdownTemplate[]): ShutdownTemplate[] {
+  const map = new Map<string, ShutdownTemplate>()
+  const add = (template: ShutdownTemplate) => {
+    const normalized = normalizeShutdownTemplate(template)
+    const prev = map.get(normalized.id)
+    if (!prev || stamp(normalized) >= stamp(prev)) map.set(normalized.id, normalized)
+  }
+  for (const x of a) add(x)
+  for (const x of b) add(x)
+  return [...map.values()].sort((x, y) => x.name.localeCompare(y.name))
+}
+
 export function mergeAppState(base: AppState, incoming: Partial<AppState>): AppState {
   const dailyLog = mergeByUpdatedAt(
     base.dailyLog,
@@ -35,11 +48,19 @@ export function mergeAppState(base: AppState, incoming: Partial<AppState>): AppS
   )
   const readingBooks = mergeReadingBooks(base.readingBooks ?? [], incoming.readingBooks ?? [])
   const weightLog = mergeWeightLog(base.weightLog ?? [], incoming.weightLog ?? [])
+  const shutdownTemplates = mergeShutdownTemplates(
+    base.shutdownTemplates ?? createDefaultShutdownTemplates(),
+    incoming.shutdownTemplates ?? [],
+  )
+  const activeShutdownTemplateId =
+    incoming.activeShutdownTemplateId ??
+    base.activeShutdownTemplateId ??
+    shutdownTemplates[0]?.id
   const stateUpdatedAt = [base.stateUpdatedAt, incoming.stateUpdatedAt]
     .filter(Boolean)
     .sort()
     .pop()
-  return { dailyLog, readingBooks, weightLog, stateUpdatedAt }
+  return { dailyLog, readingBooks, weightLog, shutdownTemplates, activeShutdownTemplateId, stateUpdatedAt }
 }
 
 export function normalizeRemoteState(raw: Record<string, unknown>): AppState {
@@ -48,6 +69,11 @@ export function normalizeRemoteState(raw: Record<string, unknown>): AppState {
     : []
   const readingBooks = Array.isArray(raw.readingBooks) ? (raw.readingBooks as ReadingBook[]) : []
   const weightLog = Array.isArray(raw.weightLog) ? (raw.weightLog as WeightEntry[]) : []
+  const shutdownTemplates = Array.isArray(raw.shutdownTemplates)
+    ? (raw.shutdownTemplates as ShutdownTemplate[]).map((t) => normalizeShutdownTemplate(t))
+    : createDefaultShutdownTemplates()
+  const activeShutdownTemplateId =
+    typeof raw.activeShutdownTemplateId === 'string' ? raw.activeShutdownTemplateId : shutdownTemplates[0]?.id
   const stateUpdatedAt = typeof raw.savedAt === 'string' ? raw.savedAt : undefined
-  return { dailyLog, readingBooks, weightLog, stateUpdatedAt }
+  return { dailyLog, readingBooks, weightLog, shutdownTemplates, activeShutdownTemplateId, stateUpdatedAt }
 }
