@@ -18,6 +18,8 @@
         if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
           document.documentElement.classList.add('dark');
         }
+        var p = localStorage.getItem('zebbi-palette') || 'espresso';
+        document.documentElement.dataset.palette = p;
       } catch (e) {}
     </script>
     <div id="root"></div>

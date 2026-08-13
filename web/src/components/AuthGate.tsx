@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Lock } from 'lucide-react'
 import { ensureAccessToken, isUnlocked, setUnlocked } from '../lib/auth'
 import { UNLOCK_PATTERN } from '../lib/accessConfig'
 import { Card } from './ui'
@@ -123,12 +122,14 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--color-bg)] px-4 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]">
-      <Card className={`w-full max-w-sm p-6 ${shake ? 'animate-pulse' : ''}`}>
-        <div className="mb-2 flex items-center gap-2 text-[var(--color-text)]">
-          <Lock className="h-5 w-5" />
-          <h2 className="text-lg font-semibold">Zebbi OS</h2>
-        </div>
-        <p className="mb-5 text-sm text-[var(--color-muted)]">Teken je unlock-vorm</p>
+      <Card className={`w-full max-w-sm p-8 ${shake ? 'animate-pulse' : ''}`}>
+        <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--color-muted)]">
+          Zebbi
+        </p>
+        <h2 className="mb-2 text-center font-display text-3xl font-medium tracking-tight text-[var(--color-text)]">
+          Unlock
+        </h2>
+        <p className="mb-6 text-center text-sm text-[var(--color-muted)]">Teken je vorm</p>
 
         <svg
           ref={svgRef}

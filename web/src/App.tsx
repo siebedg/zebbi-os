@@ -9,6 +9,7 @@ import { TrendView } from './components/TrendView'
 import { ReadingView } from './components/ReadingView'
 import { WeightView } from './components/WeightView'
 import { ShutdownView } from './components/ShutdownView'
+import { SettingsView } from './components/SettingsView'
 import { AuthGate } from './components/AuthGate'
 import { WhoopPanel } from './components/WhoopPanel'
 import {
@@ -143,6 +144,13 @@ function AppShell() {
             />
           }
         />
+        <Route
+          path="/settings"
+          element={
+            <SettingsView entries={state.dailyLog} weightLog={state.weightLog} />
+          }
+        />
+        <Route path="/export" element={<Navigate to="/settings" replace />} />
         <Route
           path="/whoop"
           element={

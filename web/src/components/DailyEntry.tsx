@@ -24,7 +24,7 @@ import {
   todayISO,
   uid,
 } from '../lib/utils'
-import { Card, SectionTitle, Input, Toggle, Btn, HabitChoice, TimeInput12 } from './ui'
+import { Card, Input, Toggle, Btn, HabitChoice, TimeInput12, PageHeader } from './ui'
 import { FieldVisibilityPanel } from './FieldVisibilityPanel'
 import { useFieldVisibility } from '../hooks/useFieldVisibility'
 
@@ -302,40 +302,45 @@ export function DailyEntryForm({
     visibility.wakeTime || visibility.bedTime || visibility.sleepScore || visibility.sleepHours
 
   return (
-    <div className="space-y-4">
-      <Card className="p-4 sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <SectionTitle sub={formatDateNL(date, 'EEEE d MMMM yyyy')}>
-            Dagelijkse log
-          </SectionTitle>
-          <Btn variant="ghost" onClick={() => setShowPaste(!showPaste)} className="!py-2 !text-xs">
-            <FileText className="h-3.5 w-3.5" />
-            Plak .txt notities
+    <div className="osc-fade-up mx-auto max-w-2xl space-y-6 pb-10">
+      <PageHeader
+        className="mb-2"
+        eyebrow="Vandaag"
+        title={
+          <>
+            Daily <span className="italic">log</span>
+          </>
+        }
+        sub={formatDateNL(date, 'EEEE d MMMM yyyy')}
+      />
+
+      <div className="flex flex-col items-center gap-3">
+        <Btn variant="ghost" onClick={() => setShowPaste(!showPaste)} className="!py-2 !text-xs">
+          <FileText className="h-3.5 w-3.5" />
+          Plak .txt notities
+        </Btn>
+        <FieldVisibilityPanel className="w-full max-w-md" />
+      </div>
+
+      {showPaste && (
+        <Card className="p-4 sm:p-5">
+          <p className="text-sm text-[var(--color-muted)]">
+            Elk blok = één deep work (DW1, DW2, …). Formaat per blok:{' '}
+            <code>8:00 --&gt; 9:30</code> en <code>85%</code>, gescheiden door een lege regel.
+          </p>
+          <textarea
+            className="mt-3 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 font-mono text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-text)]/40"
+            rows={8}
+            placeholder={`8:00 --> 9:30\n85%\n\n\n10:43 --> 11:43\n55%`}
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+          />
+          <Btn onClick={applyParsed} className="mt-3 !py-2 !text-xs">
+            <Upload className="h-3.5 w-3.5" /> Invullen
           </Btn>
-        </div>
-
-        {showPaste && (
-          <div className="mt-4 space-y-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-overlay)] p-4">
-            <p className="text-sm text-[var(--color-muted)]">
-              Elk blok = één deep work (DW1, DW2, …). Formaat per blok:{' '}
-              <code>8:00 --&gt; 9:30</code> en <code>85%</code>, gescheiden door een lege regel.
-            </p>
-            <textarea
-              className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 font-mono text-xs text-[var(--color-text)] outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20"
-              rows={8}
-              placeholder={`8:00 --> 9:30\n85%\n\n\n10:43 --> 11:43\n55%`}
-              value={pasteText}
-              onChange={(e) => setPasteText(e.target.value)}
-            />
-            <Btn onClick={applyParsed} className="!py-2 !text-xs">
-              <Upload className="h-3.5 w-3.5" /> Invullen
-            </Btn>
-            {parseMsg && <p className="text-xs text-[var(--color-good)]">{parseMsg}</p>}
-          </div>
-        )}
-      </Card>
-
-      <FieldVisibilityPanel className="max-w-md" />
+          {parseMsg && <p className="mt-2 text-xs text-[var(--color-good)]">{parseMsg}</p>}
+        </Card>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         {showSleepCard && (

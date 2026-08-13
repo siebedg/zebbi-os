@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { addMonths, format, parseISO, subMonths } from 'date-fns'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { DailyEntry } from '../types'
 import {
   OSCILLATION_METRICS,
@@ -9,6 +8,7 @@ import {
   currentMonthKey,
 } from '../lib/oscillation'
 import { useTheme } from '../hooks/useTheme'
+import { MonthNav, PageHeader, Pill } from './ui'
 
 const UP = '#2dd4bf'
 const DOWN = '#f472b6'
@@ -295,57 +295,32 @@ export function TrendView({ entries }: { entries: DailyEntry[] }) {
   const metricLabel = band?.metric.label.toLowerCase() ?? '…'
 
   return (
-    <div className="mx-auto max-w-4xl pb-12">
-      <div className="mb-12 flex items-center justify-center gap-1">
-        <button
-          type="button"
-          onClick={() => shiftMonth(-1)}
-          className="rounded-full p-2 text-[var(--color-muted)] transition hover:bg-[var(--color-surface-overlay)] hover:text-[var(--color-text)]"
-          aria-label="Vorige maand"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <span className="min-w-[9.5rem] select-none text-center text-[13px] capitalize tracking-wide text-[var(--color-muted)]">
-          {report.label}
-        </span>
-        <button
-          type="button"
-          onClick={() => shiftMonth(1)}
-          className="rounded-full p-2 text-[var(--color-muted)] transition hover:bg-[var(--color-surface-overlay)] hover:text-[var(--color-text)]"
-          aria-label="Volgende maand"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
+    <div className="osc-fade-up mx-auto max-w-4xl pb-12">
+      <div className="mb-12">
+        <MonthNav
+          label={report.label}
+          onPrev={() => shiftMonth(-1)}
+          onNext={() => shiftMonth(1)}
+        />
       </div>
 
-      <header className="mb-9 text-center">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--color-muted)]">
-          Oscillation
-        </p>
-        <h1 className="font-display text-[2.15rem] font-medium leading-[1.15] tracking-[-0.02em] text-[var(--color-text)] sm:text-[3rem]">
-          Oscillation of my <span className="italic">{metricLabel}</span>
-        </h1>
-      </header>
+      <PageHeader
+        className="mb-9"
+        eyebrow="Oscillation"
+        title={
+          <>
+            Oscillation of my <span className="italic">{metricLabel}</span>
+          </>
+        }
+      />
 
       {available.length > 0 && (
         <nav className="mb-9 flex flex-wrap items-center justify-center gap-1" aria-label="Metric">
-          {available.map((m) => {
-            const on = m.id === activeId
-            return (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => setMetricId(m.id)}
-                className={`rounded-full px-3.5 py-1.5 text-[12px] font-medium transition-colors ${
-                  on
-                    ? 'bg-[var(--color-text)] text-[var(--color-bg)]'
-                    : 'text-[var(--color-muted)] hover:bg-[var(--color-surface-overlay)] hover:text-[var(--color-text)]'
-                }`}
-              >
-                {m.label}
-              </button>
-            )
-          })}
+          {available.map((m) => (
+            <Pill key={m.id} active={m.id === activeId} onClick={() => setMetricId(m.id)}>
+              {m.label}
+            </Pill>
+          ))}
         </nav>
       )}
 
@@ -357,7 +332,7 @@ export function TrendView({ entries }: { entries: DailyEntry[] }) {
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 sm:p-5">
+        <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-card)] sm:p-5">
           <OscillationWave displayLow={band.displayLow} displayHigh={band.displayHigh} />
         </div>
       )}

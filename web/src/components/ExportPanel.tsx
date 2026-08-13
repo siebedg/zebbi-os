@@ -13,14 +13,16 @@ import {
   exportToMarkdown,
 } from '../lib/exportData'
 import { isValidDateStr } from '../lib/utils'
-import { Btn, Card, SectionTitle } from './ui'
+import { Btn, Card } from './ui'
 
 export function ExportPanel({
   entries,
   weightLog,
+  embedded = false,
 }: {
   entries: DailyEntry[]
   weightLog?: WeightEntry[]
+  embedded?: boolean
 }) {
   const monthKeys = useMemo(() => {
     const keys = new Set<string>()
@@ -74,19 +76,23 @@ export function ExportPanel({
     flash('Download gestart')
   }
 
-  return (
-    <Card className="p-4">
-      <SectionTitle sub="AI-ready context — daily log, baselines, floors.">
-        Export
-      </SectionTitle>
+  const body = (
+    <Card className="p-5 sm:p-6">
+      {!embedded && (
+        <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
+          Data
+        </p>
+      )}
 
       {monthKeys.length > 0 && (
         <label className="mb-3 block">
-          <span className="mb-1 block text-xs text-[var(--color-muted)]">Maand</span>
+          <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">
+            Maand
+          </span>
           <select
             value={monthKey}
             onChange={(e) => setMonthKey(e.target.value)}
-            className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+            className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-text)]/40"
           >
             {monthKeys.map((k) => (
               <option key={k} value={k}>{monthLabel(k)}</option>
@@ -130,5 +136,13 @@ export function ExportPanel({
 
       {msg && <p className="mt-3 text-xs text-[var(--color-good)]">{msg}</p>}
     </Card>
+  )
+
+  if (embedded) return body
+
+  return (
+    <div className="osc-fade-up mx-auto max-w-lg space-y-8 pb-12">
+      {body}
+    </div>
   )
 }

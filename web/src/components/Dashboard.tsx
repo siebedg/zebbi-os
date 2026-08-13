@@ -4,7 +4,7 @@ import { enrichEntry } from '../lib/sessions'
 import { formatDateNL, todayISO } from '../lib/utils'
 import { getCellStyle, formatFieldValue } from '../lib/colors'
 import { useTheme } from '../hooks/useTheme'
-import { Card, StatCard, Btn } from './ui'
+import { Card, StatCard, Btn, PageHeader } from './ui'
 
 const QUICK_FIELDS = [
   { key: 'wakeTime', label: 'Wake' },
@@ -36,21 +36,25 @@ export function Dashboard({
   const pct = Math.round((completed / QUICK_FIELDS.length) * 100)
 
   return (
-    <div className="space-y-6">
-      <Card className="p-5">
+    <div className="osc-fade-up space-y-8">
+      <PageHeader
+        eyebrow="Vandaag"
+        title={
+          <>
+            {formatDateNL(today, 'EEEE')}{' '}
+            <span className="italic">{formatDateNL(today, 'd MMMM')}</span>
+          </>
+        }
+        sub={pct === 100 ? 'Alles ingevuld.' : `${completed} van ${QUICK_FIELDS.length} velden`}
+      />
+
+      <Card className="p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-sm text-[var(--color-muted)]">{formatDateNL(today, 'EEEE d MMMM')}</p>
-            <h2 className="mt-0.5 text-lg font-semibold">Vandaag</h2>
-            <p className="mt-1 text-sm text-[var(--color-muted)]">
-              {pct === 100 ? 'Alles ingevuld.' : `${completed} van ${QUICK_FIELDS.length} velden`}
-            </p>
-            <div className="mt-3 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-[var(--color-surface-overlay)]">
-              <div
-                className="h-full rounded-full bg-[var(--color-text)] transition-all"
-                style={{ width: `${pct}%` }}
-              />
-            </div>
+          <div className="h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-[var(--color-surface-overlay)]">
+            <div
+              className="h-full rounded-full bg-[var(--color-text)] transition-all"
+              style={{ width: `${pct}%` }}
+            />
           </div>
           <Btn onClick={onGoEntry}>
             {pct === 100 ? 'Bewerken' : 'Invullen'}
@@ -85,7 +89,7 @@ export function Dashboard({
             return (
               <div
                 key={key}
-                className="flex items-center justify-between rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5"
+                className="flex items-center justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5"
                 style={style ? { background: style.bg } : undefined}
               >
                 <span className="text-sm text-[var(--color-muted)]">{label}</span>
