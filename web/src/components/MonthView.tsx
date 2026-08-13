@@ -13,7 +13,6 @@ import {
   isBefore,
 } from 'date-fns'
 import { nl } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { DailyEntry } from '../types'
 import { useTheme } from '../hooks/useTheme'
 import { useMediaQuery } from '../hooks/useMediaQuery'
@@ -38,7 +37,7 @@ import { monthColumnAverageValues, monthColumnAverages } from '../lib/monthlySta
 import { filterMonthColumns } from '../lib/fieldVisibility'
 import { useFieldVisibility } from '../hooks/useFieldVisibility'
 import { FieldVisibilityPanel } from './FieldVisibilityPanel'
-import { Card, SectionTitle } from './ui'
+import { Card, MonthNav, PageHeader } from './ui'
 
 const DOW = ['Z', 'M', 'D', 'W', 'D', 'V', 'Z']
 
@@ -102,40 +101,30 @@ export function MonthView({
   )
 
   return (
-    <div className="space-y-3 sm:space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <SectionTitle sub={`${monthDays.length} dagen`}>{monthLabel}</SectionTitle>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            disabled={!canGoPrev}
-            onClick={() => canGoPrev && setCursor((c) => clampVisibleMonth(subMonths(c, 1)))}
-            className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 hover:bg-[var(--color-surface-overlay)] disabled:cursor-not-allowed disabled:opacity-30"
-          >
-            <ChevronLeft className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setCursor(clampVisibleMonth(new Date()))}
-            className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs hover:bg-[var(--color-surface-overlay)]"
-          >
-            Nu
-          </button>
-          <button
-            type="button"
-            onClick={() => setCursor((c) => addMonths(c, 1))}
-            className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 hover:bg-[var(--color-surface-overlay)]"
-          >
-            <ChevronRight className="h-3.5 w-3.5" />
-          </button>
-        </div>
+    <div className="osc-fade-up space-y-8 pb-8">
+      <MonthNav
+        label={monthLabel}
+        prevDisabled={!canGoPrev}
+        onPrev={() => canGoPrev && setCursor((c) => clampVisibleMonth(subMonths(c, 1)))}
+        onNext={() => setCursor((c) => addMonths(c, 1))}
+      />
+
+      <PageHeader
+        eyebrow="Maand"
+        title={
+          <>
+            Daily <span className="italic">grid</span>
+          </>
+        }
+        sub={`${monthDays.length} dagen · tik een rij om te bewerken`}
+      />
+
+      <div className="flex flex-col items-center gap-3">
+        <FieldVisibilityPanel className="w-full max-w-sm" />
+        {isMobile && (
+          <p className="text-xs text-[var(--color-muted)]">Swipe horizontaal voor alle kolommen →</p>
+        )}
       </div>
-
-      <FieldVisibilityPanel className="max-w-sm" />
-
-      {isMobile && (
-        <p className="text-xs text-[var(--color-muted)] md:hidden">Swipe horizontaal voor alle kolommen →</p>
-      )}
 
       <Card
         className={`relative scroll-touch scrollbar-thin overflow-x-auto p-0 ${isMayMemorial ? 'bg-[var(--color-surface)]' : ''}`}

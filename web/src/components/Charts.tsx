@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { addMonths, format, parseISO, subMonths } from 'date-fns'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   CartesianGrid,
   Line,
@@ -25,6 +24,7 @@ import {
 } from '../lib/oscillation'
 import { useTheme } from '../hooks/useTheme'
 import { useMediaQuery } from '../hooks/useMediaQuery'
+import { MonthNav, PageHeader, Pill } from './ui'
 
 /** Metrics that matter for raising your floor — same set as oscillation, minus noise. */
 const CHART_METRIC_IDS = [
@@ -136,7 +136,7 @@ function BaselineCard({ card, range }: { card: CardModel; range: RangeKey }) {
         : null
 
   return (
-    <article className="flex flex-col border-b border-[var(--color-border)] py-6 last:border-b-0 sm:border sm:border-[var(--color-border)] sm:rounded-xl sm:px-5 sm:py-5 sm:last:border-b">
+    <article className="flex flex-col border-b border-[var(--color-border)] py-6 last:border-b-0 sm:rounded-2xl sm:border sm:border-[var(--color-border)] sm:px-5 sm:py-5 sm:last:border-b sm:shadow-[var(--shadow-card)]">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-[var(--color-text)]">{band.metric.label}</h3>
@@ -162,7 +162,7 @@ function BaselineCard({ card, range }: { card: CardModel; range: RangeKey }) {
           <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--color-muted)]">
             Floor
           </p>
-          <p className="mt-0.5 text-3xl font-semibold tracking-tight tabular-nums text-[var(--color-text)]">
+          <p className="mt-0.5 font-display text-3xl font-medium tracking-tight tabular-nums text-[var(--color-text)]">
             {band.displayLow}
           </p>
         </div>
@@ -347,62 +347,38 @@ export function Charts({ entries }: { entries: DailyEntry[] }) {
   }
 
   return (
-    <div className="mx-auto max-w-2xl pb-10">
-      <header className="mb-6 text-center">
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-muted)]">
-          Baselines
-        </p>
-        <h1 className="font-display text-3xl font-medium tracking-tight text-[var(--color-text)] sm:text-4xl">
-          Raise the floor
-        </h1>
-        <p className="mx-auto mt-2 max-w-sm text-sm text-[var(--color-muted)]">
-          Verbeteren = je herhalende low omhoog. Piek is nice; floor is progress.
-        </p>
-      </header>
+    <div className="osc-fade-up mx-auto max-w-2xl pb-10">
+      <PageHeader
+        className="mb-9"
+        eyebrow="Baselines"
+        title={
+          <>
+            Raise the <span className="italic">floor</span>
+          </>
+        }
+        sub="Verbeteren = je herhalende low omhoog. Piek is nice; floor is progress."
+      />
 
-      <div className="mb-6 flex justify-center gap-1">
+      <div className="mb-8 flex justify-center gap-1">
         {(
           [
             { key: 'month' as const, label: 'Maand' },
             { key: 'all' as const, label: 'All' },
           ] as const
         ).map((r) => (
-          <button
-            key={r.key}
-            type="button"
-            onClick={() => setRange(r.key)}
-            className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition ${
-              range === r.key
-                ? 'bg-[var(--color-text)] text-[var(--color-bg)]'
-                : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
-            }`}
-          >
+          <Pill key={r.key} active={range === r.key} onClick={() => setRange(r.key)}>
             {r.label}
-          </button>
+          </Pill>
         ))}
       </div>
 
       {range === 'month' && (
-        <div className="mb-8 flex items-center justify-center gap-1">
-          <button
-            type="button"
-            onClick={() => shiftMonth(-1)}
-            className="rounded-full p-2 text-[var(--color-muted)] transition hover:bg-[var(--color-surface-overlay)] hover:text-[var(--color-text)]"
-            aria-label="Vorige maand"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <span className="min-w-[9.5rem] text-center text-[13px] capitalize tracking-wide text-[var(--color-muted)]">
-            {monthReport.label}
-          </span>
-          <button
-            type="button"
-            onClick={() => shiftMonth(1)}
-            className="rounded-full p-2 text-[var(--color-muted)] transition hover:bg-[var(--color-surface-overlay)] hover:text-[var(--color-text)]"
-            aria-label="Volgende maand"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
+        <div className="mb-8">
+          <MonthNav
+            label={monthReport.label}
+            onPrev={() => shiftMonth(-1)}
+            onNext={() => shiftMonth(1)}
+          />
         </div>
       )}
 
@@ -413,7 +389,7 @@ export function Charts({ entries }: { entries: DailyEntry[] }) {
       )}
 
       {priority && (
-        <section className="mb-8 rounded-xl border border-[var(--color-border)] px-4 py-4 sm:px-5">
+        <section className="mb-8 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-5 shadow-[var(--shadow-card)]">
           <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
             Eerst dit
           </p>

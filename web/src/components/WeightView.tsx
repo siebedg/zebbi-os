@@ -26,7 +26,7 @@ import {
 } from '../lib/weightGoal'
 import { useTheme } from '../hooks/useTheme'
 import { useMediaQuery } from '../hooks/useMediaQuery'
-import { Btn, Input } from './ui'
+import { Btn, Input, Pill } from './ui'
 
 type RangeKey = '1y' | 'all'
 
@@ -219,7 +219,7 @@ export function WeightView({
           : `${formatKg(Math.abs(schedule.deltaKg))} kg achter`
 
   return (
-    <div className="flex min-h-[calc(100dvh-5rem)] flex-col justify-center md:min-h-[calc(100dvh-3rem)]">
+    <div className="osc-fade-up flex min-h-[calc(100dvh-5rem)] flex-col justify-center md:min-h-[calc(100dvh-3rem)]">
       <div className="mx-auto w-full max-w-lg space-y-6 py-6">
         {/* Hero */}
         <header className="text-center">
@@ -228,7 +228,7 @@ export function WeightView({
           </p>
           {latest ? (
             <>
-              <p className="mt-2 text-5xl font-semibold tracking-tight tabular-nums text-[var(--color-text)] sm:text-6xl">
+              <p className="mt-2 font-display text-5xl font-medium tracking-tight tabular-nums text-[var(--color-text)] sm:text-6xl">
                 {formatKg(latest.kg)}
                 <span className="ml-1 text-2xl font-normal text-[var(--color-muted)]">kg</span>
               </p>
@@ -258,18 +258,9 @@ export function WeightView({
               { key: '1y' as const, label: '1J' },
             ] as const
           ).map((r) => (
-            <button
-              key={r.key}
-              type="button"
-              onClick={() => setRange(r.key)}
-              className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition ${
-                range === r.key
-                  ? 'bg-[var(--color-text)] text-[var(--color-bg)]'
-                  : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
-              }`}
-            >
+            <Pill key={r.key} active={range === r.key} onClick={() => setRange(r.key)}>
               {r.label}
-            </button>
+            </Pill>
           ))}
         </div>
 
