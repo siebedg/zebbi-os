@@ -1,4 +1,5 @@
 $ErrorActionPreference = 'SilentlyContinue'
+Set-Location -LiteralPath $PSScriptRoot
 
 # Edit this list to match the distractions you want gone during shutdown.
 $targets = @(
@@ -9,7 +10,8 @@ $targets = @(
   'Spotify',
   'Steam',
   'Notion',
-  'Obsidian'
+  'Obsidian',
+  'Messenger'
 )
 
 Write-Host 'Zebbi shutdown kill helper'
@@ -19,5 +21,4 @@ foreach ($name in $targets) {
   Get-Process -Name $name | Stop-Process -Force
 }
 
-Write-Host 'Done.'
-Write-Host 'Tip: add or remove process names in tools/zebbi-shutdown-kill.ps1'
+Write-Host 'Done. Prefer double-clicking Zebbi-kill.bat on your Desktop.'

@@ -154,10 +154,13 @@ function AppShell() {
         <Route
           path="/whoop"
           element={
-            <div className="mx-auto max-w-lg space-y-4">
-              <p className="text-center text-xs font-medium uppercase tracking-widest text-[var(--color-muted)]">
+            <div className="osc-fade-up mx-auto max-w-lg space-y-6 pb-12">
+              <p className="text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--color-muted)]">
                 Whoop
               </p>
+              <h1 className="text-center font-display text-[2.15rem] font-medium tracking-tight text-[var(--color-text)]">
+                Sleep <span className="italic">sync</span>
+              </h1>
               <WhoopPanel />
             </div>
           }

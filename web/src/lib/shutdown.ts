@@ -11,7 +11,7 @@ export function createDefaultShutdownTemplates(): ShutdownTemplate[] {
     {
       id: uid(),
       name: 'Daily shutdown',
-      introMessage: 'Als je alle stappen doorneemt voel je je altijd fulfilled en oprecht euphoric. Liefs, Siebe.',
+      introMessage: 'Als je alle stappen doorneemt voel je je altijd fulfilled en oprecht euphoric.\nLiefs, Siebe.',
       encouragement: 'Start rustig. Kill noise first, then close the day well.',
       timerMinutes: 15,
       killCommand: 'powershell -ExecutionPolicy Bypass -File ".\\tools\\zebbi-shutdown-kill.ps1"',
@@ -27,7 +27,7 @@ export function createDefaultShutdownTemplates(): ShutdownTemplate[] {
           'Remove friction (War Map, To-do, V1.1, timer, work)',
           'Turn computer in greyscale',
         ]),
-        section('Body', ['Take yoga mat and do some yoga with Bend']),
+        section('Body', ['Take yoga mat → now do some yoga with Bend']),
       ],
       updatedAt: now,
     },

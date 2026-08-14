@@ -37,13 +37,13 @@ export function PageHeader({
         {title}
       </h1>
       {sub && (
-        <p
+        <div
           className={`mt-3 text-sm leading-relaxed text-[var(--color-muted)] ${
             align === 'center' ? 'mx-auto max-w-md' : 'max-w-lg'
           }`}
         >
           {sub}
-        </p>
+        </div>
       )}
     </header>
   )

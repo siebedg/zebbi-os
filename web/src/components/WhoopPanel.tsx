@@ -17,8 +17,18 @@ export function WhoopPanel() {
   const [msg, setMsg] = useState<string | null>(null)
 
   const reload = useCallback(async () => {
-    const s = await fetchWhoopStatus()
-    setStatus(s)
+    try {
+      const s = await fetchWhoopStatus()
+      setStatus(s)
+    } catch {
+      setStatus({
+        configured: false,
+        connected: false,
+        connectedAt: null,
+        syncFrom: '2026-07-04',
+      })
+      setMsg('Whoop status kon niet geladen worden.')
+    }
   }, [])
 
   useEffect(() => {
@@ -69,7 +79,13 @@ export function WhoopPanel() {
     setBusy(false)
   }
 
-  if (!status) return null
+  if (!status) {
+    return (
+      <Card className="p-4 sm:p-5">
+        <p className="text-sm text-[var(--color-muted)]">Whoop laden…</p>
+      </Card>
+    )
+  }
 
   return (
     <Card className="p-4 sm:p-5">

@@ -1,8 +1,10 @@
-import { Moon, Sun } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Moon, Sun, Watch } from 'lucide-react'
 import type { DailyEntry, WeightEntry } from '../types'
 import { useTheme } from '../hooks/useTheme'
 import { PALETTE_OPTIONS, type PaletteId } from '../lib/theme'
 import { ExportPanel } from './ExportPanel'
+import { WhoopPanel } from './WhoopPanel'
 import { PageHeader, Pill, Toggle } from './ui'
 
 export function SettingsView({
@@ -24,7 +26,7 @@ export function SettingsView({
             Look and <span className="italic">feel</span>
           </>
         }
-        sub="Palette, indicators, and export."
+        sub="Palette, indicators, Whoop, and export."
       />
 
       <section className="mb-10">
@@ -94,6 +96,20 @@ export function SettingsView({
         <p className="mt-2 text-xs leading-relaxed text-[var(--color-muted)]">
           Grayscale cells instead of score colors. Scores still exist; they just don’t shout.
         </p>
+      </section>
+
+      <section className="mb-10">
+        <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]">
+          Whoop
+        </p>
+        <Link
+          to="/whoop"
+          className="mb-3 inline-flex items-center gap-2 text-sm text-[var(--color-text)] underline-offset-2 hover:underline"
+        >
+          <Watch className="h-4 w-4" />
+          Open Whoop
+        </Link>
+        <WhoopPanel />
       </section>
 
       <section>
