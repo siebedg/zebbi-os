@@ -16,12 +16,12 @@ const MAIN_TABS = [
   { path: '/vandaag', label: 'Vandaag', icon: PenLine },
   { path: '/trend', label: 'Oscillation', icon: LineChart },
   { path: '/grafieken', label: 'Grafieken', icon: BarChart3 },
+  { path: '/review', label: '30d', icon: Repeat },
 ] as const
 
 const SECONDARY_TABS = [
   { path: '/gewicht', label: 'Gewicht', icon: Scale },
   { path: '/shutdown', label: 'Shutdown', icon: ClipboardCheck },
-  { path: '/review', label: '30d', icon: Repeat },
   { path: '/settings', label: 'Settings', icon: Settings },
 ] as const
 
