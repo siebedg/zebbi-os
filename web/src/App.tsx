@@ -147,7 +147,13 @@ function AppShell() {
         <Route
           path="/settings"
           element={
-            <SettingsView entries={state.dailyLog} weightLog={state.weightLog} />
+            <SettingsView
+              entries={state.dailyLog}
+              weightLog={state.weightLog}
+              shutdownTemplates={state.shutdownTemplates ?? []}
+              activeShutdownTemplateId={state.activeShutdownTemplateId}
+              onSaveShutdownTemplate={saveShutdownTemplate}
+            />
           }
         />
         <Route path="/export" element={<Navigate to="/settings" replace />} />

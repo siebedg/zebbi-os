@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
-import { ArrowRight, Check, ImagePlus, Play, SquareTerminal } from 'lucide-react'
+import { ArrowRight, Check, Play, SquareTerminal } from 'lucide-react'
 import type { ShutdownTemplate } from '../types'
-import { formatMmSs, SHUTDOWN_QR_PAYLOAD, normalizeShutdownTemplate } from '../lib/shutdown'
+import { formatMmSs, SHUTDOWN_QR_PAYLOAD } from '../lib/shutdown'
 import {
   loadShutdownSession,
   saveShutdownSession,
@@ -10,58 +10,16 @@ import {
 } from '../lib/shutdownSession'
 import { launchKillHelper } from '../lib/shutdownKill'
 import { Btn, Card, PageHeader } from './ui'
+import { HabitContractsImage } from './HabitContractsImage'
 
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result ?? ''))
-    reader.onerror = () => reject(reader.error)
-    reader.readAsDataURL(file)
-  })
-}
-
-async function compressImage(file: File): Promise<{ dataUrl: string; name: string }> {
-  const raw = await fileToDataUrl(file)
-  if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') {
-    return { dataUrl: raw, name: file.name }
-  }
-  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const el = new Image()
-    el.onload = () => resolve(el)
-    el.onerror = () => reject(new Error('Image load failed'))
-    el.src = raw
-  })
-  const max = 1200
-  const scale = Math.min(1, max / Math.max(img.width, img.height))
-  const canvas = document.createElement('canvas')
-  canvas.width = Math.round(img.width * scale)
-  canvas.height = Math.round(img.height * scale)
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return { dataUrl: raw, name: file.name }
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-  return { dataUrl: canvas.toDataURL('image/jpeg', 0.82), name: file.name }
-}
-
-function SunGlyph() {
+function SunMark({ color }: { color: string }) {
   return (
-    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" aria-hidden>
-      <circle cx="12" cy="12" r="3.6" fill="currentColor" />
-      <g stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" fill="none">
-        <path d="M12 2.6v2.1M12 19.3v2.1M4.8 4.8l1.5 1.5M17.7 17.7l1.5 1.5M2.6 12h2.1M19.3 12h2.1M4.8 19.2l1.5-1.5M17.7 6.3l1.5-1.5" />
+    <svg viewBox="0 0 32 32" className="h-7 w-7 shrink-0" aria-hidden>
+      <circle cx="16" cy="16" r="5.25" fill={color} />
+      <g stroke={color} strokeWidth="2.15" strokeLinecap="round" fill="none">
+        <path d="M16 3.2v3.1M16 25.7v3.1M6.2 6.2l2.2 2.2M23.6 23.6l2.2 2.2M3.2 16h3.1M25.7 16h3.1M6.2 25.8l2.2-2.2M23.6 8.4l2.2-2.2" />
       </g>
     </svg>
-  )
-}
-
-function SunChip({ tone }: { tone: 'yellow' | 'orange' }) {
-  return (
-    <span
-      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-stone-900"
-      style={{ background: tone === 'yellow' ? '#facc15' : '#fb923c' }}
-      aria-hidden
-    >
-      <SunGlyph />
-    </span>
   )
 }
 
@@ -79,11 +37,11 @@ function ShutdownItemLabel({ text }: { text: string }) {
 
   if (lower.includes('plan tomorrow')) {
     return (
-      <span className="inline-flex flex-wrap items-center gap-1.5">
+      <span className="inline-flex flex-wrap items-center gap-2">
         Plan tomorrow
-        <SunChip tone="yellow" />
+        <SunMark color="#facc15" />
         <span className="font-medium text-[var(--color-muted)]">{'&'}</span>
-        <SunChip tone="orange" />
+        <SunMark color="#fb923c" />
       </span>
     )
   }
@@ -102,7 +60,7 @@ function ShutdownItemLabel({ text }: { text: string }) {
     return (
       <>
         <span className="italic underline decoration-2 underline-offset-2 text-[var(--color-bad)]">
-          intention
+          Intention
         </span>
         {' + Timetable / Google Calendar'}
       </>
@@ -112,51 +70,56 @@ function ShutdownItemLabel({ text }: { text: string }) {
   return <>{text}</>
 }
 
-function HabitContracts({
-  imageDataUrl,
-  imageName,
-  onUpload,
+function isSupplementItem(text: string) {
+  return text.toLowerCase().includes('supplement')
+}
+
+function supplementKey(template: ShutdownTemplate): string | null {
+  for (const section of template.sections) {
+    const idx = section.items.findIndex(isSupplementItem)
+    if (idx >= 0) return `${section.id}-${idx}`
+  }
+  return null
+}
+
+function CheckRow({
+  done,
+  onToggle,
+  text,
 }: {
-  imageDataUrl?: string
-  imageName?: string
-  onUpload: (file: File) => void
+  done: boolean
+  onToggle: () => void
+  text: string
 }) {
   return (
-    <div className="space-y-3">
-      <p className="text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
-        Habit Contracts
-      </p>
-      {imageDataUrl ? (
-        <div className="overflow-hidden rounded-2xl border border-[var(--color-border)]">
-          <img src={imageDataUrl} alt={imageName || 'Habit contracts'} className="max-h-80 w-full object-contain bg-[var(--color-surface)]" />
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-dashed border-[var(--color-border)] px-4 py-8 text-center text-sm text-[var(--color-muted)]">
-          Nog geen foto
-        </div>
-      )}
-      <label className="flex cursor-pointer items-center justify-center gap-2 rounded-full border border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-muted)] transition hover:bg-[var(--color-surface-overlay)] hover:text-[var(--color-text)]">
-        <ImagePlus className="h-3.5 w-3.5" />
-        {imageDataUrl ? 'Vervang foto' : 'Upload foto'}
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0]
-            if (file) onUpload(file)
-            e.target.value = ''
-          }}
-        />
-      </label>
-    </div>
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`flex w-full items-start gap-3 rounded-2xl border px-3.5 py-3 text-left transition ${
+        done
+          ? 'border-[var(--color-border)] bg-[var(--color-surface-overlay)]'
+          : 'border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-overlay)]'
+      }`}
+    >
+      <span
+        className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+          done
+            ? 'border-[var(--color-text)] bg-[var(--color-text)] text-[var(--color-bg)]'
+            : 'border-[var(--color-border)] text-transparent'
+        }`}
+      >
+        <Check className="h-3 w-3" />
+      </span>
+      <span className={done ? 'text-[var(--color-muted)] line-through' : 'text-[var(--color-text)]'}>
+        <ShutdownItemLabel text={text} />
+      </span>
+    </button>
   )
 }
 
 export function ShutdownView({
   templates,
   activeTemplateId,
-  onSaveTemplate,
 }: {
   templates: ShutdownTemplate[]
   activeTemplateId?: string
@@ -174,7 +137,9 @@ export function ShutdownView({
   const [startedAt, setStartedAt] = useState<number | null>(existing?.startedAt ?? null)
   const [timerMinutes, setTimerMinutes] = useState(existing?.timerMinutes ?? template?.timerMinutes ?? 15)
   const [killDone, setKillDone] = useState(existing?.killDone ?? false)
-  const [secondsLeft, setSecondsLeft] = useState(() => (existing ? sessionSecondsLeft(existing) : (template?.timerMinutes ?? 0) * 60))
+  const [secondsLeft, setSecondsLeft] = useState(() =>
+    existing ? sessionSecondsLeft(existing) : (template?.timerMinutes ?? 0) * 60,
+  )
   const [checked, setChecked] = useState<Set<string>>(() => new Set(existing?.checked ?? []))
   const [qrDataUrl, setQrDataUrl] = useState('')
 
@@ -253,17 +218,8 @@ export function ShutdownView({
     })
   }
 
-  const uploadContract = async (file: File) => {
-    const { dataUrl, name } = await compressImage(file)
-    onSaveTemplate(
-      normalizeShutdownTemplate({
-        ...template,
-        imageDataUrl: dataUrl,
-        imageName: name,
-        updatedAt: new Date().toISOString(),
-      }),
-    )
-  }
+  const gateKey = supplementKey(template)
+  const restUnlocked = !gateKey || checked.has(gateKey)
 
   if (!startedAt) {
     return (
@@ -278,34 +234,6 @@ export function ShutdownView({
     )
   }
 
-  const killCard = (
-    <Card className="p-5">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
-        Kill noise
-      </p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Btn
-          onClick={() => {
-            saveShutdownSession({
-              startedAt,
-              timerMinutes,
-              templateId: template.id,
-              killDone,
-              checked: [...checked],
-            })
-            launchKillHelper()
-          }}
-        >
-          <SquareTerminal className="h-4 w-4" />
-          Kill distractions
-        </Btn>
-        <Btn variant={killDone ? 'primary' : 'ghost'} onClick={() => setKillDone((v) => !v)}>
-          {killDone ? 'Kill done' : 'Mark kill done'}
-        </Btn>
-      </div>
-    </Card>
-  )
-
   return (
     <div className="osc-fade-up mx-auto max-w-lg space-y-6 pb-12">
       <div className="text-center">
@@ -317,13 +245,40 @@ export function ShutdownView({
         </p>
       </div>
 
-      {killCard}
+      <Card className="p-5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
+          Kill noise
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Btn
+            onClick={() => {
+              saveShutdownSession({
+                startedAt,
+                timerMinutes,
+                templateId: template.id,
+                killDone,
+                checked: [...checked],
+              })
+              launchKillHelper()
+            }}
+          >
+            <SquareTerminal className="h-4 w-4" />
+            Kill distractions
+          </Btn>
+          <Btn variant={killDone ? 'primary' : 'ghost'} onClick={() => setKillDone((v) => !v)}>
+            {killDone ? 'Kill done' : 'Mark kill done'}
+          </Btn>
+        </div>
+      </Card>
 
-      <HabitContracts
-        imageDataUrl={template.imageDataUrl}
-        imageName={template.imageName}
-        onUpload={uploadContract}
-      />
+      {(template.imageDataUrl || template.imageName) && (
+        <div className="space-y-3">
+          <p className="text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
+            Habit Contracts
+          </p>
+          <HabitContractsImage imageDataUrl={template.imageDataUrl} imageName={template.imageName} />
+        </div>
+      )}
 
       {killDone && (
         <Card className="p-5 text-center">
@@ -345,42 +300,39 @@ export function ShutdownView({
       )}
 
       <div className="space-y-6">
-        {template.sections.map((section) => (
-          <div key={section.id} className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
-              {section.title}
-            </p>
-            {section.items.map((item, idx) => {
-              const key = `${section.id}-${idx}`
-              const done = checked.has(key)
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => toggleItem(key)}
-                  className={`flex w-full items-start gap-3 rounded-2xl border px-3.5 py-3 text-left transition ${
-                    done
-                      ? 'border-[var(--color-border)] bg-[var(--color-surface-overlay)]'
-                      : 'border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-overlay)]'
-                  }`}
-                >
-                  <span
-                    className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-                      done
-                        ? 'border-[var(--color-text)] bg-[var(--color-text)] text-[var(--color-bg)]'
-                        : 'border-[var(--color-border)] text-transparent'
-                    }`}
-                  >
-                    <Check className="h-3 w-3" />
-                  </span>
-                  <span className={done ? 'text-[var(--color-muted)] line-through' : 'text-[var(--color-text)]'}>
-                    <ShutdownItemLabel text={item} />
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        ))}
+        {template.sections.map((section) =>
+          section.items.map((item, idx) => {
+            if (!isSupplementItem(item)) return null
+            const key = `${section.id}-${idx}`
+            return <CheckRow key={key} done={checked.has(key)} onToggle={() => toggleItem(key)} text={item} />
+          }),
+        )}
+
+        {restUnlocked &&
+          template.sections.map((section) => {
+            const items = section.items
+              .map((item, idx) => ({ item, idx }))
+              .filter(({ item }) => !isSupplementItem(item))
+            if (items.length === 0) return null
+            return (
+              <div key={section.id} className="space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
+                  {section.title}
+                </p>
+                {items.map(({ item, idx }) => {
+                  const key = `${section.id}-${idx}`
+                  return (
+                    <CheckRow
+                      key={key}
+                      done={checked.has(key)}
+                      onToggle={() => toggleItem(key)}
+                      text={item}
+                    />
+                  )
+                })}
+              </div>
+            )
+          })}
       </div>
     </div>
   )

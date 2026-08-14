@@ -1,21 +1,32 @@
 import { Link } from 'react-router-dom'
 import { Moon, SquareTerminal, Sun, Watch } from 'lucide-react'
-import type { DailyEntry, WeightEntry } from '../types'
+import type { DailyEntry, ShutdownTemplate, WeightEntry } from '../types'
 import { useTheme } from '../hooks/useTheme'
 import { PALETTE_OPTIONS, type PaletteId } from '../lib/theme'
 import { KILL_INSTALLER_PATH } from '../lib/shutdownKill'
 import { ExportPanel } from './ExportPanel'
+import { HabitContractsImage, saveHabitContractImage } from './HabitContractsImage'
 import { WhoopPanel } from './WhoopPanel'
 import { PageHeader, Pill, Toggle } from './ui'
 
 export function SettingsView({
   entries,
   weightLog,
+  shutdownTemplates,
+  activeShutdownTemplateId,
+  onSaveShutdownTemplate,
 }: {
   entries: DailyEntry[]
   weightLog?: WeightEntry[]
+  shutdownTemplates: ShutdownTemplate[]
+  activeShutdownTemplateId?: string
+  onSaveShutdownTemplate: (template: ShutdownTemplate) => void
 }) {
   const { theme, setTheme, palette, setPalette, indicatorMode, setIndicatorMode } = useTheme()
+  const shutdownTemplate =
+    shutdownTemplates.find((t) => t.id === activeShutdownTemplateId) ??
+    shutdownTemplates.find((t) => /daily/i.test(t.name)) ??
+    shutdownTemplates[0]
 
   return (
     <div className="osc-fade-up mx-auto max-w-lg pb-12">
@@ -128,6 +139,19 @@ export function SettingsView({
         <p className="mt-2 text-xs leading-relaxed text-[var(--color-muted)]">
           Eerste keer op deze PC: download en run. Daarna sluit de shutdown-knop Discord, Slack, Chrome, Cursor, enz.
         </p>
+        {shutdownTemplate && (
+          <div className="mt-6">
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
+              Habit Contracts
+            </p>
+            <HabitContractsImage
+              imageDataUrl={shutdownTemplate.imageDataUrl}
+              imageName={shutdownTemplate.imageName}
+              editable
+              onUpload={(file) => void saveHabitContractImage(shutdownTemplate, file, onSaveShutdownTemplate)}
+            />
+          </div>
+        )}
       </section>
 
       <section>
