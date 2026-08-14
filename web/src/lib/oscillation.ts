@@ -35,14 +35,14 @@ export type OscillationBand = {
 
 /** DW4/5 omitted from oscillation pills — keep DW1–3. */
 export const OSCILLATION_METRICS: OscillationMetric[] = [
-  { id: 'meditation', label: 'Meditatie', unit: 'min', direction: 'higher' },
+  { id: 'meditation', label: 'Meditation', unit: 'min', direction: 'higher' },
   { id: 'deepWork1', label: 'Deep work 1', unit: 'min', direction: 'higher' },
   { id: 'deepWork2', label: 'Deep work 2', unit: 'min', direction: 'higher' },
   { id: 'deepWork3', label: 'Deep work 3', unit: 'min', direction: 'higher' },
   { id: 'avgFocus', label: 'Focus', unit: '%', direction: 'higher' },
-  { id: 'totalWorked', label: 'Totaal deep work', unit: 'uur', direction: 'higher' },
+  { id: 'totalWorked', label: 'Total deep work', unit: 'uur', direction: 'higher' },
   { id: 'sleepScore', label: 'Sleep score', unit: '%', direction: 'higher' },
-  { id: 'sleepHours', label: 'Slaapuren', unit: 'uur', direction: 'higher' },
+  { id: 'sleepHours', label: 'Sleep hours', unit: 'uur', direction: 'higher' },
   { id: 'timetable', label: 'Timetable', unit: '%', direction: 'higher' },
 ]
 

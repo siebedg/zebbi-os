@@ -37,7 +37,7 @@ import { monthColumnAverageValues, monthColumnAverages } from '../lib/monthlySta
 import { filterMonthColumns } from '../lib/fieldVisibility'
 import { useFieldVisibility } from '../hooks/useFieldVisibility'
 import { FieldVisibilityPanel } from './FieldVisibilityPanel'
-import { Card, MonthNav, PageHeader } from './ui'
+import { Card, MonthNav } from './ui'
 
 const DOW = ['Z', 'M', 'D', 'W', 'D', 'V', 'Z']
 
@@ -101,7 +101,7 @@ export function MonthView({
   )
 
   return (
-    <div className="osc-fade-up space-y-8 pb-8">
+    <div className="osc-fade-up space-y-3 pb-8">
       <MonthNav
         label={monthLabel}
         prevDisabled={!canGoPrev}
@@ -109,17 +109,7 @@ export function MonthView({
         onNext={() => setCursor((c) => addMonths(c, 1))}
       />
 
-      <PageHeader
-        eyebrow="Maand"
-        title={
-          <>
-            Daily <span className="italic">grid</span>
-          </>
-        }
-        sub={`${monthDays.length} dagen · tik een rij om te bewerken`}
-      />
-
-      <div className="flex flex-col items-center gap-3">
+      <div className="flex flex-col items-center gap-2">
         <FieldVisibilityPanel className="w-full max-w-sm" />
         {isMobile && (
           <p className="text-xs text-[var(--color-muted)]">Swipe horizontaal voor alle kolommen →</p>
