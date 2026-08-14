@@ -20,7 +20,9 @@ echo   Obsidian.exe
 echo   Messenger.exe
 echo   chrome.exe
 echo   Cursor.exe
+echo   cursor-agent.exe
 echo ^) do taskkill /F /IM %%%%P /T ^>nul 2^>^&1
+echo powershell -NoProfile -ExecutionPolicy Bypass -Command "try { (New-Object -ComObject Shell.Application).Windows() | ForEach-Object { if ($_.FullName -match 'explorer\.exe') { $_.Quit() } } } catch {}" ^>nul 2^>^&1
 echo timeout /t 1 /nobreak ^>nul
 echo set "URL=https://zebbi-os.vercel.app/shutdown"
 echo set "CHROME="

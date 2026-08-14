@@ -16,7 +16,10 @@ for %%P in (
   Messenger.exe
   chrome.exe
   Cursor.exe
+  cursor-agent.exe
 ) do taskkill /F /IM %%P /T >nul 2>&1
+
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try { (New-Object -ComObject Shell.Application).Windows() | ForEach-Object { if ($_.FullName -match 'explorer\.exe') { $_.Quit() } } } catch {}" >nul 2>&1
 
 timeout /t 1 /nobreak >nul
 set "URL=https://zebbi-os.vercel.app/shutdown"

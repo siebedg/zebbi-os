@@ -1,7 +1,6 @@
 $ErrorActionPreference = 'SilentlyContinue'
 Set-Location -LiteralPath $PSScriptRoot
 
-# Edit this list to match the distractions you want gone during shutdown.
 $targets = @(
   'Discord',
   'Slack',
@@ -13,7 +12,8 @@ $targets = @(
   'Obsidian',
   'Messenger',
   'chrome',
-  'Cursor'
+  'Cursor',
+  'cursor-agent'
 )
 
 Write-Host 'Zebbi shutdown kill helper'
@@ -22,6 +22,12 @@ Write-Host 'Closing distraction processes...'
 foreach ($name in $targets) {
   Get-Process -Name $name | Stop-Process -Force
 }
+
+try {
+  (New-Object -ComObject Shell.Application).Windows() | ForEach-Object {
+    if ($_.FullName -match 'explorer\.exe') { $_.Quit() }
+  }
+} catch {}
 
 Start-Sleep -Seconds 1
 $chrome = @(
