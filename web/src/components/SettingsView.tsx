@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
-import { Moon, Sun, Watch } from 'lucide-react'
+import { Moon, SquareTerminal, Sun, Watch } from 'lucide-react'
 import type { DailyEntry, WeightEntry } from '../types'
 import { useTheme } from '../hooks/useTheme'
 import { PALETTE_OPTIONS, type PaletteId } from '../lib/theme'
+import { KILL_INSTALLER_PATH } from '../lib/shutdownKill'
 import { ExportPanel } from './ExportPanel'
 import { WhoopPanel } from './WhoopPanel'
 import { PageHeader, Pill, Toggle } from './ui'
@@ -71,7 +72,7 @@ export function SettingsView({
                   {p.swatches.map((c) => (
                     <span
                       key={c}
-                      className="h-6 w-6 rounded-full border border-black/10"
+                      className="h-6 w-6 rounded-full ring-1 ring-white/45 ring-offset-2 ring-offset-[var(--color-surface)]"
                       style={{ background: c }}
                     />
                   ))}
@@ -110,6 +111,23 @@ export function SettingsView({
           Open Whoop
         </Link>
         <WhoopPanel />
+      </section>
+
+      <section className="mb-10">
+        <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]">
+          Shutdown
+        </p>
+        <a
+          href={KILL_INSTALLER_PATH}
+          download="Zebbi-install-kill.bat"
+          className="inline-flex items-center gap-2 text-sm text-[var(--color-text)] underline-offset-2 hover:underline"
+        >
+          <SquareTerminal className="h-4 w-4" />
+          Installeer one-click kill
+        </a>
+        <p className="mt-2 text-xs leading-relaxed text-[var(--color-muted)]">
+          Eerste keer op deze PC: download en run. Daarna sluit de shutdown-knop Discord, Slack, Chrome, Cursor, enz.
+        </p>
       </section>
 
       <section>

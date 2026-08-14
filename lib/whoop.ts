@@ -230,7 +230,8 @@ export async function refreshTokens(tokens: WhoopTokens): Promise<WhoopTokens> {
     refresh_token: tokens.refresh_token,
     client_id: whoopClientId(),
     client_secret: whoopClientSecret(),
-    scope: WHOOP_SCOPES,
+    // Whoop refresh only accepts `offline` here — `read:sleep offline` is rejected as malformed.
+    scope: 'offline',
   })
   const r = await fetch(WHOOP_TOKEN_URL, {
     method: 'POST',
@@ -309,6 +310,7 @@ export async function fetchSleepsSince(startIso: string): Promise<WhoopSleep[]> 
   do {
     const url = new URL(`${WHOOP_API}/developer/v2/activity/sleep`)
     url.searchParams.set('start', startIso)
+    url.searchParams.set('end', new Date().toISOString())
     url.searchParams.set('limit', '25')
     if (nextToken) url.searchParams.set('nextToken', nextToken)
 

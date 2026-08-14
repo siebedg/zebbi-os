@@ -8,6 +8,7 @@ import {
   Scale,
   Settings,
 } from 'lucide-react'
+import { ShutdownTimerDock } from './ShutdownTimerDock'
 
 const MAIN_TABS = [
   { path: '/maand', label: 'Maand', icon: CalendarDays },
@@ -130,6 +131,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <main className="min-w-0 flex-1 px-4 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-8 sm:py-10 md:ml-[232px] md:px-10">
         <div className="mx-auto max-w-6xl">{children}</div>
       </main>
+      <ShutdownTimerDock />
     </div>
   )
 }

@@ -14,10 +14,10 @@ export const PALETTE_OPTIONS: {
   hint: string
   swatches: [string, string, string]
 }[] = [
-  { id: 'espresso', label: 'Espresso olive', hint: 'Warm stone, muted olive', swatches: ['#1c1917', '#4d7c0f', '#f6f3ee'] },
-  { id: 'graphite', label: 'Graphite amber', hint: 'Charcoal, amber', swatches: ['#141210', '#d97706', '#fafafa'] },
-  { id: 'ink', label: 'Ink rose', hint: 'Navy, rose', swatches: ['#0f172a', '#e11d48', '#fff1f2'] },
-  { id: 'default', label: 'Stone', hint: 'Cool paper, steel', swatches: ['#18181b', '#3f3f46', '#fafafa'] },
+  { id: 'espresso', label: 'Espresso olive', hint: 'Warm stone, muted olive', swatches: ['#a3b18a', '#4d7c0f', '#f6f3ee'] },
+  { id: 'graphite', label: 'Graphite amber', hint: 'Charcoal, amber', swatches: ['#fbbf24', '#d97706', '#fafafa'] },
+  { id: 'ink', label: 'Ink rose', hint: 'Navy, rose', swatches: ['#fb7185', '#e11d48', '#fff1f2'] },
+  { id: 'default', label: 'Stone', hint: 'Cool paper, steel', swatches: ['#a1a1aa', '#3f3f46', '#fafafa'] },
 ]
 
 export function getSystemTheme(): Theme {

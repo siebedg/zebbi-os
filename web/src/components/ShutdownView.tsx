@@ -1,10 +1,14 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { ArrowRight, Check, ImagePlus, Play, SquareTerminal } from 'lucide-react'
 import type { ShutdownTemplate } from '../types'
-import { formatMmSs, makeShutdownQrPayload, normalizeShutdownTemplate } from '../lib/shutdown'
-import { KILL_INSTALLER_PATH, launchKillHelper } from '../lib/shutdownKill'
-import { uid } from '../lib/utils'
+import { formatMmSs, SHUTDOWN_QR_PAYLOAD, normalizeShutdownTemplate } from '../lib/shutdown'
+import {
+  loadShutdownSession,
+  saveShutdownSession,
+  sessionSecondsLeft,
+} from '../lib/shutdownSession'
+import { launchKillHelper } from '../lib/shutdownKill'
 import { Btn, Card, PageHeader } from './ui'
 
 function fileToDataUrl(file: File): Promise<string> {
@@ -38,14 +42,25 @@ async function compressImage(file: File): Promise<{ dataUrl: string; name: strin
   return { dataUrl: canvas.toDataURL('image/jpeg', 0.82), name: file.name }
 }
 
+function SunGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" aria-hidden>
+      <circle cx="12" cy="12" r="3.6" fill="currentColor" />
+      <g stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" fill="none">
+        <path d="M12 2.6v2.1M12 19.3v2.1M4.8 4.8l1.5 1.5M17.7 17.7l1.5 1.5M2.6 12h2.1M19.3 12h2.1M4.8 19.2l1.5-1.5M17.7 6.3l1.5-1.5" />
+      </g>
+    </svg>
+  )
+}
+
 function SunChip({ tone }: { tone: 'yellow' | 'orange' }) {
   return (
     <span
-      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[13px] leading-none"
+      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-stone-900"
       style={{ background: tone === 'yellow' ? '#facc15' : '#fb923c' }}
       aria-hidden
     >
-      ☀️
+      <SunGlyph />
     </span>
   )
 }
@@ -67,6 +82,7 @@ function ShutdownItemLabel({ text }: { text: string }) {
       <span className="inline-flex flex-wrap items-center gap-1.5">
         Plan tomorrow
         <SunChip tone="yellow" />
+        <span className="font-medium text-[var(--color-muted)]">{'&'}</span>
         <SunChip tone="orange" />
       </span>
     )
@@ -94,21 +110,6 @@ function ShutdownItemLabel({ text }: { text: string }) {
   }
 
   return <>{text}</>
-}
-
-function IntroCopy({ text }: { text: string }) {
-  const liefs = text.match(/^(.*?)(?:\s*[\n.]\s*)?(Liefs,?\s*Siebe\.?)\s*$/is)
-  if (liefs) {
-    let body = liefs[1].trim()
-    if (body && !/[.!?]$/.test(body)) body += '.'
-    return (
-      <>
-        <p>{body || 'Als je alle stappen doorneemt voel je je altijd fulfilled en oprecht euphoric.'}</p>
-        <p className="mt-2">{liefs[2].replace(/\.$/, '')}</p>
-      </>
-    )
-  }
-  return <p>{text}</p>
 }
 
 function HabitContracts({
@@ -169,41 +170,55 @@ export function ShutdownView({
     templates[0] ??
     null
 
-  const [startedAt, setStartedAt] = useState<number | null>(null)
-  const [killDone, setKillDone] = useState(false)
-  const [secondsLeft, setSecondsLeft] = useState(0)
-  const [checked, setChecked] = useState<Set<string>>(() => new Set())
+  const existing = loadShutdownSession()
+  const [startedAt, setStartedAt] = useState<number | null>(existing?.startedAt ?? null)
+  const [timerMinutes, setTimerMinutes] = useState(existing?.timerMinutes ?? template?.timerMinutes ?? 15)
+  const [killDone, setKillDone] = useState(existing?.killDone ?? false)
+  const [secondsLeft, setSecondsLeft] = useState(() => (existing ? sessionSecondsLeft(existing) : (template?.timerMinutes ?? 0) * 60))
+  const [checked, setChecked] = useState<Set<string>>(() => new Set(existing?.checked ?? []))
   const [qrDataUrl, setQrDataUrl] = useState('')
 
   useEffect(() => {
-    setStartedAt(null)
-    setKillDone(false)
+    const session = loadShutdownSession()
+    if (session) {
+      setStartedAt(session.startedAt)
+      setTimerMinutes(session.timerMinutes)
+      setKillDone(session.killDone)
+      setChecked(new Set(session.checked))
+      setSecondsLeft(sessionSecondsLeft(session))
+      return
+    }
     setSecondsLeft((template?.timerMinutes ?? 0) * 60)
-    setChecked(new Set())
-    setQrDataUrl('')
-  }, [template])
+  }, [template?.id])
+
+  useEffect(() => {
+    if (!startedAt) return
+    const tick = () => {
+      setSecondsLeft(Math.max(0, timerMinutes * 60 - Math.floor((Date.now() - startedAt) / 1000)))
+    }
+    tick()
+    const timer = window.setInterval(tick, 250)
+    return () => window.clearInterval(timer)
+  }, [startedAt, timerMinutes])
 
   useEffect(() => {
     if (!template || !startedAt) return
-    const timer = window.setInterval(() => {
-      const next = Math.max(0, template.timerMinutes * 60 - Math.floor((Date.now() - startedAt) / 1000))
-      setSecondsLeft(next)
-    }, 250)
-    return () => window.clearInterval(timer)
-  }, [template, startedAt])
+    saveShutdownSession({
+      startedAt,
+      timerMinutes,
+      templateId: template.id,
+      killDone,
+      checked: [...checked],
+    })
+  }, [template, startedAt, timerMinutes, killDone, checked])
 
   useEffect(() => {
-    if (!template || !startedAt || !killDone) {
-      setQrDataUrl('')
-      return
-    }
-    const payload = makeShutdownQrPayload(template, startedAt, uid())
-    void QRCode.toDataURL(payload, {
+    void QRCode.toDataURL(SHUTDOWN_QR_PAYLOAD, {
       width: 240,
       margin: 1,
       color: { dark: '#111111', light: '#f8f6f2' },
     }).then(setQrDataUrl)
-  }, [template, startedAt, killDone])
+  }, [])
 
   if (!template) {
     return (
@@ -214,18 +229,19 @@ export function ShutdownView({
   }
 
   const startFlow = () => {
-    setStartedAt(Date.now())
+    const now = Date.now()
+    setStartedAt(now)
+    setTimerMinutes(template.timerMinutes)
     setSecondsLeft(template.timerMinutes * 60)
     setKillDone(false)
     setChecked(new Set())
-  }
-
-  const endFlow = () => {
-    setStartedAt(null)
-    setKillDone(false)
-    setSecondsLeft(template.timerMinutes * 60)
-    setChecked(new Set())
-    setQrDataUrl('')
+    saveShutdownSession({
+      startedAt: now,
+      timerMinutes: template.timerMinutes,
+      templateId: template.id,
+      killDone: false,
+      checked: [],
+    })
   }
 
   const toggleItem = (key: string) => {
@@ -249,12 +265,10 @@ export function ShutdownView({
     )
   }
 
-  const intro: ReactNode = <IntroCopy text={template.introMessage} />
-
   if (!startedAt) {
     return (
       <div className="osc-fade-up mx-auto flex max-w-lg flex-col items-center pb-16 pt-8 text-center">
-        <PageHeader className="mb-10" title="Daily shutdown" sub={intro} />
+        <PageHeader className="mb-10" title="Daily shutdown" />
         <Btn onClick={startFlow} className="px-8 py-3 text-base">
           <Play className="h-4 w-4" />
           Start Daily Shutdown
@@ -263,6 +277,34 @@ export function ShutdownView({
       </div>
     )
   }
+
+  const killCard = (
+    <Card className="p-5">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
+        Kill noise
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Btn
+          onClick={() => {
+            saveShutdownSession({
+              startedAt,
+              timerMinutes,
+              templateId: template.id,
+              killDone,
+              checked: [...checked],
+            })
+            launchKillHelper()
+          }}
+        >
+          <SquareTerminal className="h-4 w-4" />
+          Kill distractions
+        </Btn>
+        <Btn variant={killDone ? 'primary' : 'ghost'} onClick={() => setKillDone((v) => !v)}>
+          {killDone ? 'Kill done' : 'Mark kill done'}
+        </Btn>
+      </div>
+    </Card>
+  )
 
   return (
     <div className="osc-fade-up mx-auto max-w-lg space-y-6 pb-12">
@@ -273,49 +315,15 @@ export function ShutdownView({
         <p className="mt-3 font-display text-6xl font-medium tabular-nums tracking-tight text-[var(--color-text)]">
           {formatMmSs(secondsLeft)}
         </p>
-        <p className="mt-2 text-sm text-[var(--color-muted)]">
-          {secondsLeft > 0 ? template.encouragement : 'Time. Scan when kill is done.'}
-        </p>
-        <button
-          type="button"
-          onClick={endFlow}
-          className="mt-3 text-xs text-[var(--color-muted)] underline-offset-2 hover:text-[var(--color-text)] hover:underline"
-        >
-          End
-        </button>
       </div>
+
+      {killCard}
 
       <HabitContracts
         imageDataUrl={template.imageDataUrl}
         imageName={template.imageName}
         onUpload={uploadContract}
       />
-
-      <Card className="p-5">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
-          Kill noise
-        </p>
-        <p className="mt-2 text-sm leading-relaxed text-[var(--color-muted)]">
-          Eén klik sluit Discord, Slack, Spotify, enz. Chrome vraagt de eerste keer of Zebbi mag openen
-          — daarna is het alleen die knop.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Btn onClick={launchKillHelper}>
-            <SquareTerminal className="h-4 w-4" />
-            Kill distractions
-          </Btn>
-          <Btn variant={killDone ? 'primary' : 'ghost'} onClick={() => setKillDone((v) => !v)}>
-            {killDone ? 'Kill done' : 'Mark kill done'}
-          </Btn>
-        </div>
-        <a
-          href={KILL_INSTALLER_PATH}
-          download="Zebbi-install-kill.bat"
-          className="mt-3 inline-block text-xs text-[var(--color-muted)] underline-offset-2 hover:text-[var(--color-text)] hover:underline"
-        >
-          Eerste keer op deze PC? Installeer one-click
-        </a>
-      </Card>
 
       {killDone && (
         <Card className="p-5 text-center">

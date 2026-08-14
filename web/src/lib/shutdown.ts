@@ -80,16 +80,7 @@ export function normalizeShutdownTemplate(
   }
 }
 
-export function makeShutdownQrPayload(template: ShutdownTemplate, startedAt: number, runId: string): string {
-  return JSON.stringify({
-    app: 'zebbi-os',
-    type: 'shutdown',
-    templateId: template.id,
-    templateName: template.name,
-    startedAt,
-    runId,
-  })
-}
+export const SHUTDOWN_QR_PAYLOAD = 'https://zebbi-os.vercel.app/shutdown'
 
 export function formatMmSs(totalSeconds: number): string {
   const safe = Math.max(0, totalSeconds)
