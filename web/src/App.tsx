@@ -11,7 +11,6 @@ import { WeightView } from './components/WeightView'
 import { ShutdownView } from './components/ShutdownView'
 import { SettingsView } from './components/SettingsView'
 import { AuthGate } from './components/AuthGate'
-import { WhoopPanel } from './components/WhoopPanel'
 import {
   bedTimeForForm,
   prepareWhoopSleepSave,
@@ -157,20 +156,7 @@ function AppShell() {
           }
         />
         <Route path="/export" element={<Navigate to="/settings" replace />} />
-        <Route
-          path="/whoop"
-          element={
-            <div className="osc-fade-up mx-auto max-w-lg space-y-6 pb-12">
-              <p className="text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--color-muted)]">
-                Whoop
-              </p>
-              <h1 className="text-center font-display text-[2.15rem] font-medium tracking-tight text-[var(--color-text)]">
-                Sleep <span className="italic">sync</span>
-              </h1>
-              <WhoopPanel />
-            </div>
-          }
-        />
+        <Route path="/whoop" element={<Navigate to="/settings" replace />} />
         <Route path="*" element={<Navigate to="/maand" replace />} />
       </Routes>
     </Layout>

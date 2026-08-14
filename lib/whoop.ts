@@ -224,34 +224,66 @@ export async function exchangeCode(code: string, redirectUri: string): Promise<W
 }
 
 export async function refreshTokens(tokens: WhoopTokens): Promise<WhoopTokens> {
-  if (!tokens.refresh_token) throw new Error('Geen refresh token — verbind Whoop opnieuw')
-  const body = new URLSearchParams({
-    grant_type: 'refresh_token',
-    refresh_token: tokens.refresh_token,
-    client_id: whoopClientId(),
-    client_secret: whoopClientSecret(),
-    // Whoop refresh only accepts `offline` here — `read:sleep offline` is rejected as malformed.
-    scope: 'offline',
-  })
-  const r = await fetch(WHOOP_TOKEN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  })
-  const data = (await r.json()) as Record<string, unknown>
-  if (!r.ok || !data.access_token) {
-    throw new Error(String(data.error_description || data.error || 'Refresh failed'))
+  const refreshToken = tokens.refresh_token?.trim()
+  if (!refreshToken) throw new Error('Geen refresh token — verbind Whoop opnieuw')
+
+  const clientId = whoopClientId()
+  const clientSecret = whoopClientSecret()
+  const attempts: Array<{ params: Record<string, string>; basic?: boolean }> = [
+    {
+      params: {
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        client_id: clientId,
+        client_secret: clientSecret,
+        scope: 'offline',
+      },
+    },
+    {
+      params: {
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        client_id: clientId,
+        client_secret: clientSecret,
+      },
+    },
+    {
+      params: {
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        scope: 'offline',
+      },
+      basic: true,
+    },
+  ]
+
+  let lastError = 'Refresh failed'
+  for (const attempt of attempts) {
+    const headers: Record<string, string> = { 'Content-Type': 'application/x-www-form-urlencoded' }
+    if (attempt.basic) {
+      headers.Authorization = `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`
+    }
+    const r = await fetch(WHOOP_TOKEN_URL, {
+      method: 'POST',
+      headers,
+      body: new URLSearchParams(attempt.params),
+    })
+    const data = (await r.json()) as Record<string, unknown>
+    if (r.ok && data.access_token) {
+      const expiresIn = Number(data.expires_in ?? 3600)
+      return {
+        access_token: String(data.access_token),
+        refresh_token: data.refresh_token ? String(data.refresh_token) : refreshToken,
+        expires_at: Date.now() + expiresIn * 1000 - 60_000,
+        token_type: data.token_type ? String(data.token_type) : 'Bearer',
+        scope: data.scope ? String(data.scope) : tokens.scope,
+        connected_at: tokens.connected_at,
+      }
+    }
+    lastError = String(data.error_description || data.error || lastError)
   }
-  const expiresIn = Number(data.expires_in ?? 3600)
-  return {
-    access_token: String(data.access_token),
-    // Whoop rotates refresh tokens — always store the new one
-    refresh_token: data.refresh_token ? String(data.refresh_token) : tokens.refresh_token,
-    expires_at: Date.now() + expiresIn * 1000 - 60_000,
-    token_type: data.token_type ? String(data.token_type) : 'Bearer',
-    scope: data.scope ? String(data.scope) : tokens.scope,
-    connected_at: tokens.connected_at,
-  }
+
+  throw new Error(lastError)
 }
 
 export async function createOAuthState(): Promise<string> {
@@ -296,8 +328,15 @@ export async function getValidAccessToken(): Promise<string> {
   let tokens = await loadTokens()
   if (!tokens) throw new Error('Whoop niet verbonden')
   if (Date.now() >= tokens.expires_at) {
-    tokens = await refreshTokens(tokens)
-    await saveTokens(tokens)
+    try {
+      tokens = await refreshTokens(tokens)
+      await saveTokens(tokens)
+    } catch {
+      await clearTokens()
+      throw new Error(
+        'Whoop-login is verlopen. Zet Whoop opnieuw aan in Settings om te verbinden.',
+      )
+    }
   }
   return tokens.access_token
 }

@@ -7,10 +7,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const configured = whoopConfigured()
   const tokens = configured ? await loadTokens() : null
+  const expired = Boolean(tokens?.expires_at && Date.now() >= tokens.expires_at)
 
   return res.status(200).json({
     configured,
-    connected: Boolean(tokens?.access_token),
+    connected: Boolean(tokens?.access_token && tokens?.refresh_token),
+    expired,
     connectedAt: tokens?.connected_at ?? null,
     syncFrom: WHOOP_SYNC_FROM,
     redirectUri: whoopRedirectUri(),

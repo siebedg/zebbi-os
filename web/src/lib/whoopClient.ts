@@ -3,6 +3,7 @@ import { authHeaders, signalAuthLost } from './auth'
 export type WhoopStatus = {
   configured: boolean
   connected: boolean
+  expired?: boolean
   connectedAt: string | null
   syncFrom: string
   redirectUri?: string
@@ -35,6 +36,7 @@ export async function fetchWhoopStatus(): Promise<WhoopStatus> {
   return {
     configured: Boolean(data.configured),
     connected: Boolean(data.connected),
+    expired: Boolean(data.expired),
     connectedAt: data.connectedAt ?? null,
     syncFrom: data.syncFrom ?? '2026-07-04',
     redirectUri: data.redirectUri,

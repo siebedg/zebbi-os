@@ -20,18 +20,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       error === 'invalid_state' || error === 'access_denied'
         ? ' — check Redirect URI in Whoop dashboard = https://zebbi-os.vercel.app/api/whoop-callback (geen slash op het einde)'
         : ''
-    return res.redirect(302, `/whoop?whoop=error&msg=${encodeURIComponent(msg + hint)}`)
+    return res.redirect(302, `/settings?whoop=error&msg=${encodeURIComponent(msg + hint)}`)
   }
 
   const code = typeof q.code === 'string' ? q.code : null
   const state = typeof q.state === 'string' ? q.state : null
-  if (!code) return res.redirect(302, '/whoop?whoop=error&msg=missing_code')
+  if (!code) return res.redirect(302, '/settings?whoop=error&msg=missing_code')
 
   const stateOk = await consumeOAuthState(state)
   if (!stateOk) {
     return res.redirect(
       302,
-      `/whoop?whoop=error&msg=${encodeURIComponent('OAuth state ongeldig of verlopen — probeer Connect opnieuw')}`,
+      `/settings?whoop=error&msg=${encodeURIComponent('OAuth state ongeldig of verlopen — zet Whoop opnieuw aan')}`,
     )
   }
 
@@ -40,9 +40,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const redirectUri = whoopRedirectUri(host)
     const tokens = await exchangeCode(code, redirectUri)
     await saveTokens(tokens)
-    return res.redirect(302, `/whoop?whoop=connected`)
+    return res.redirect(302, `/settings?whoop=connected`)
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'callback_failed'
-    return res.redirect(302, `/whoop?whoop=error&msg=${encodeURIComponent(msg)}`)
+    return res.redirect(302, `/settings?whoop=error&msg=${encodeURIComponent(msg)}`)
   }
 }

@@ -1,5 +1,4 @@
-import { Link } from 'react-router-dom'
-import { Moon, SquareTerminal, Sun, Watch } from 'lucide-react'
+import { Moon, SquareTerminal, Sun } from 'lucide-react'
 import type { DailyEntry, ShutdownTemplate, WeightEntry } from '../types'
 import { useTheme } from '../hooks/useTheme'
 import { PALETTE_OPTIONS, type PaletteId } from '../lib/theme'
@@ -114,13 +113,6 @@ export function SettingsView({
         <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]">
           Whoop
         </p>
-        <Link
-          to="/whoop"
-          className="mb-3 inline-flex items-center gap-2 text-sm text-[var(--color-text)] underline-offset-2 hover:underline"
-        >
-          <Watch className="h-4 w-4" />
-          Open Whoop
-        </Link>
         <WhoopPanel />
       </section>
 
