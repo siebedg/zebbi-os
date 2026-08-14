@@ -9,6 +9,7 @@ import { TrendView } from './components/TrendView'
 import { ReadingView } from './components/ReadingView'
 import { WeightView } from './components/WeightView'
 import { ShutdownView } from './components/ShutdownView'
+import { ReviewView } from './components/ReviewView'
 import { SettingsView } from './components/SettingsView'
 import { AuthGate } from './components/AuthGate'
 import {
@@ -98,6 +99,7 @@ function AppShell() {
     saveShutdownTemplate,
     deleteShutdownTemplate,
     setActiveShutdownTemplate,
+    saveOscillationProtocol,
   } = useStore()
 
   if (!ready) return <Loading />
@@ -140,6 +142,16 @@ function AppShell() {
               onSaveTemplate={saveShutdownTemplate}
               onDeleteTemplate={deleteShutdownTemplate}
               onSetActiveTemplate={setActiveShutdownTemplate}
+            />
+          }
+        />
+        <Route
+          path="/review"
+          element={
+            <ReviewView
+              entries={state.dailyLog}
+              protocol={state.oscillationProtocol}
+              onSave={saveOscillationProtocol}
             />
           }
         />

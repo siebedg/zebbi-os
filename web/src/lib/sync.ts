@@ -56,6 +56,7 @@ export async function pushRemoteState(state: AppState): Promise<{ ok: boolean; e
         weightLog: state.weightLog ?? [],
         shutdownTemplates: state.shutdownTemplates ?? [],
         activeShutdownTemplateId: state.activeShutdownTemplateId,
+        oscillationProtocol: state.oscillationProtocol,
       }),
     })
     if (res.status === 401) return { ok: false, error: 'auth' }

@@ -10,6 +10,7 @@ type StoredState = {
   weightLog?: unknown[]
   shutdownTemplates?: unknown[]
   activeShutdownTemplateId?: string
+  oscillationProtocol?: unknown
   savedAt?: string
 }
 
@@ -83,6 +84,7 @@ function mergeStored(existing: StoredState | null, incoming: StoredState): Store
     shutdownTemplates,
     activeShutdownTemplateId:
       incoming.activeShutdownTemplateId ?? existing.activeShutdownTemplateId,
+    oscillationProtocol: incoming.oscillationProtocol ?? existing.oscillationProtocol,
     savedAt: new Date().toISOString(),
   }
 }
@@ -150,6 +152,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           weightLog: [],
           shutdownTemplates: [],
           activeShutdownTemplateId: null,
+          oscillationProtocol: null,
           savedAt: null,
           storage,
         })
@@ -160,6 +163,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         weightLog: state.weightLog ?? [],
         shutdownTemplates: state.shutdownTemplates ?? [],
         activeShutdownTemplateId: state.activeShutdownTemplateId ?? null,
+        oscillationProtocol: state.oscillationProtocol ?? null,
         savedAt: state.savedAt ?? null,
         storage,
       })
@@ -183,6 +187,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         shutdownTemplates: Array.isArray(body.shutdownTemplates) ? body.shutdownTemplates : [],
         activeShutdownTemplateId:
           typeof body.activeShutdownTemplateId === 'string' ? body.activeShutdownTemplateId : undefined,
+        oscillationProtocol: body.oscillationProtocol,
       })
       const { ok, storage } = await writeState(merged)
       if (!ok) {

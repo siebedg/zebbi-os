@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import type { AppState, DailyEntry, ReadingBook, ShutdownTemplate, WeightEntry } from '../types'
+import type { AppState, DailyEntry, OscillationProtocol, ReadingBook, ShutdownTemplate, WeightEntry } from '../types'
 import { createDefaultShutdownTemplates, normalizeShutdownTemplate } from '../lib/shutdown'
 import { enrichEntry } from '../lib/sessions'
 import { loadAllBundledMonths, loadSeedData, loadState, saveState } from '../lib/storage'
@@ -35,6 +35,7 @@ type Store = {
   saveShutdownTemplate: (template: ShutdownTemplate) => void
   deleteShutdownTemplate: (id: string) => void
   setActiveShutdownTemplate: (id: string) => void
+  saveOscillationProtocol: (protocol: OscillationProtocol) => void
   refreshFromCloud: () => Promise<void>
 }
 
@@ -368,6 +369,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [commit],
   )
 
+  const saveOscillationProtocol = useCallback(
+    (protocol: OscillationProtocol) => {
+      commit((prev) => ({
+        ...prev,
+        oscillationProtocol: { ...protocol, updatedAt: new Date().toISOString() },
+      }))
+    },
+    [commit],
+  )
+
   const todayEntry = useMemo(
     () => state.dailyLog.find((e) => e.date === todayISO()),
     [state.dailyLog],
@@ -397,6 +408,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       saveShutdownTemplate,
       deleteShutdownTemplate,
       setActiveShutdownTemplate,
+      saveOscillationProtocol,
       refreshFromCloud: pullFromCloud,
     }),
     [
@@ -417,6 +429,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       saveShutdownTemplate,
       deleteShutdownTemplate,
       setActiveShutdownTemplate,
+      saveOscillationProtocol,
       pullFromCloud,
     ],
   )

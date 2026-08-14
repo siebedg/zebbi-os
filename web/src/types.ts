@@ -69,6 +69,7 @@ export interface AppState {
   weightLog?: WeightEntry[]
   shutdownTemplates?: ShutdownTemplate[]
   activeShutdownTemplateId?: string
+  oscillationProtocol?: OscillationProtocol
   /** Laatste cloud-save timestamp */
   stateUpdatedAt?: string
 }
@@ -93,6 +94,54 @@ export interface ReadingBook {
 export interface WeightEntry {
   date: string
   kg: number
+  updatedAt?: string
+}
+
+export type FloorMetricId =
+  | 'deepWork1'
+  | 'deepWork2'
+  | 'deepWork3'
+  | 'totalWorked'
+  | 'avgFocus'
+  | 'timetable'
+
+export type CommittedFloors = Record<FloorMetricId, number>
+
+export interface ReviewCycle {
+  id: string
+  startDate: string
+  endDate: string
+  days: number
+  committed: CommittedFloors
+  raisedTo: CommittedFloors
+  closedAt: string
+}
+
+export interface OscillationProtocol {
+  activity: string
+  spectrumGood: string
+  spectrumBad: string
+  plusAmplitude: string
+  minusAmplitude: string
+  periodDays: number
+  output: string
+  inputsGood: string
+  inputsBad: string
+  stockGood: string
+  stockBad: string
+  feedback: string
+  feedbackDelay: string
+  delayFix: string
+  negativeTrigger: string
+  negativeLoop: string
+  antiTrigger: string
+  positiveTrigger: string
+  positiveLoop: string
+  hardLimits: string
+  committed: CommittedFloors
+  cycleDays: number
+  cycleStart: string
+  history: ReviewCycle[]
   updatedAt?: string
 }
 

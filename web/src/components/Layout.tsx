@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   LineChart,
   PenLine,
+  Repeat,
   Scale,
   Settings,
 } from 'lucide-react'
@@ -20,6 +21,7 @@ const MAIN_TABS = [
 const SECONDARY_TABS = [
   { path: '/gewicht', label: 'Gewicht', icon: Scale },
   { path: '/shutdown', label: 'Shutdown', icon: ClipboardCheck },
+  { path: '/review', label: '30d', icon: Repeat },
   { path: '/settings', label: 'Settings', icon: Settings },
 ] as const
 

@@ -1,5 +1,6 @@
-import type { AppState, DailyEntry, ReadingBook, ShutdownTemplate, WeightEntry } from '../types'
+import type { AppState, DailyEntry, OscillationProtocol, ReadingBook, ShutdownTemplate, WeightEntry } from '../types'
 import { createDefaultShutdownTemplates, normalizeShutdownTemplate } from './shutdown'
+import { normalizeOscillationProtocol } from './oscillationProtocol'
 import { enrichEntry } from './sessions'
 import { mergeByUpdatedAt } from './utils'
 
@@ -41,6 +42,17 @@ export function mergeShutdownTemplates(a: ShutdownTemplate[], b: ShutdownTemplat
   return [...map.values()].sort((x, y) => x.name.localeCompare(y.name))
 }
 
+function mergeProtocol(
+  a?: OscillationProtocol,
+  b?: OscillationProtocol,
+): OscillationProtocol {
+  const left = a ? normalizeOscillationProtocol(a) : null
+  const right = b ? normalizeOscillationProtocol(b) : null
+  if (!left) return right ?? normalizeOscillationProtocol()
+  if (!right) return left
+  return (right.updatedAt ?? '') >= (left.updatedAt ?? '') ? right : left
+}
+
 export function mergeAppState(base: AppState, incoming: Partial<AppState>): AppState {
   const dailyLog = mergeByUpdatedAt(
     base.dailyLog,
@@ -56,11 +68,20 @@ export function mergeAppState(base: AppState, incoming: Partial<AppState>): AppS
     incoming.activeShutdownTemplateId ??
     base.activeShutdownTemplateId ??
     shutdownTemplates[0]?.id
+  const oscillationProtocol = mergeProtocol(base.oscillationProtocol, incoming.oscillationProtocol)
   const stateUpdatedAt = [base.stateUpdatedAt, incoming.stateUpdatedAt]
     .filter(Boolean)
     .sort()
     .pop()
-  return { dailyLog, readingBooks, weightLog, shutdownTemplates, activeShutdownTemplateId, stateUpdatedAt }
+  return {
+    dailyLog,
+    readingBooks,
+    weightLog,
+    shutdownTemplates,
+    activeShutdownTemplateId,
+    oscillationProtocol,
+    stateUpdatedAt,
+  }
 }
 
 export function normalizeRemoteState(raw: Record<string, unknown>): AppState {
@@ -74,6 +95,17 @@ export function normalizeRemoteState(raw: Record<string, unknown>): AppState {
     : createDefaultShutdownTemplates()
   const activeShutdownTemplateId =
     typeof raw.activeShutdownTemplateId === 'string' ? raw.activeShutdownTemplateId : shutdownTemplates[0]?.id
+  const oscillationProtocol = raw.oscillationProtocol
+    ? normalizeOscillationProtocol(raw.oscillationProtocol as OscillationProtocol)
+    : undefined
   const stateUpdatedAt = typeof raw.savedAt === 'string' ? raw.savedAt : undefined
-  return { dailyLog, readingBooks, weightLog, shutdownTemplates, activeShutdownTemplateId, stateUpdatedAt }
+  return {
+    dailyLog,
+    readingBooks,
+    weightLog,
+    shutdownTemplates,
+    activeShutdownTemplateId,
+    oscillationProtocol,
+    stateUpdatedAt,
+  }
 }

@@ -1,7 +1,8 @@
-import type { AppState } from '../types'
+import type { AppState, OscillationProtocol } from '../types'
 import { createDefaultShutdownTemplates, normalizeShutdownTemplate } from './shutdown'
 import { enrichEntry } from './sessions'
 import { isValidDateStr, normalizeImportedRow } from './utils'
+import { normalizeOscillationProtocol } from './oscillationProtocol'
 
 const STORAGE_KEY = 'improvement-dashboard-v6'
 
@@ -27,6 +28,9 @@ function migrate(raw: Record<string, unknown>): AppState {
     : createDefaultShutdownTemplates()
   const activeShutdownTemplateId =
     typeof raw.activeShutdownTemplateId === 'string' ? raw.activeShutdownTemplateId : shutdownTemplates[0]?.id
+  const oscillationProtocol = raw.oscillationProtocol
+    ? normalizeOscillationProtocol(raw.oscillationProtocol as OscillationProtocol)
+    : undefined
   const stateUpdatedAt = typeof raw.stateUpdatedAt === 'string' ? raw.stateUpdatedAt : undefined
   return {
     dailyLog,
@@ -34,6 +38,7 @@ function migrate(raw: Record<string, unknown>): AppState {
     weightLog: weightLog ?? [],
     shutdownTemplates,
     activeShutdownTemplateId,
+    oscillationProtocol,
     stateUpdatedAt,
   }
 }

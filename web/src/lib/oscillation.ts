@@ -293,6 +293,22 @@ export function buildOscillationReport(
   }
 }
 
+export function buildRangeOscillationReport(
+  entries: DailyEntry[],
+  startDate: string,
+  endDate: string,
+): { startDate: string; endDate: string; daysWithData: number; bands: OscillationBand[] } {
+  const inRange = entries.filter(
+    (e) => isValidDateStr(e.date) && e.date >= startDate && e.date <= endDate,
+  )
+  const daysWithData = new Set(inRange.map((e) => e.date)).size
+  const bands = OSCILLATION_METRICS.map((metric) =>
+    oscillationBandFromValues(metric, collectMetricValues(inRange, metric.id)),
+  ).filter((b) => b.low != null && b.high != null)
+
+  return { startDate, endDate, daysWithData, bands }
+}
+
 /** All-time floors across every valid entry (same band logic as a month). */
 export function buildAllTimeOscillationReport(entries: DailyEntry[]): {
   label: string
