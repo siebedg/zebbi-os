@@ -14,7 +14,7 @@ import { HabitContractsImage } from './HabitContractsImage'
 
 function SunMark({ color }: { color: string }) {
   return (
-    <svg viewBox="0 0 32 32" className="h-7 w-7 shrink-0" aria-hidden>
+    <svg viewBox="0 0 32 32" className="h-[1em] w-[1em] shrink-0" aria-hidden>
       <circle cx="16" cy="16" r="5.25" fill={color} />
       <g stroke={color} strokeWidth="2.15" strokeLinecap="round" fill="none">
         <path d="M16 3.2v3.1M16 25.7v3.1M6.2 6.2l2.2 2.2M23.6 23.6l2.2 2.2M3.2 16h3.1M25.7 16h3.1M6.2 25.8l2.2-2.2M23.6 8.4l2.2-2.2" />
