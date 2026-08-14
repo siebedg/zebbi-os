@@ -1,29 +1,31 @@
 import { useMemo, useState } from 'react'
+import { format, parseISO } from 'date-fns'
 import type { CommittedFloors, DailyEntry, OscillationProtocol } from '../types'
 import { cycleProgress, floorRows, closeCycle, normalizeOscillationProtocol } from '../lib/oscillationProtocol'
-import { todayISO } from '../lib/utils'
 import { useTheme } from '../hooks/useTheme'
 import { Btn, Card, PageHeader, Pill } from './ui'
 
 const UP = '#2dd4bf'
 const DOWN = '#f472b6'
 const W = 1000
-const H = 280
-const PAD_L = 36
-const PAD_R = 36
-const PAD_T = 28
-const PAD_B = 36
+const H = 380
+const PAD_L = 48
+const PAD_R = 48
+const PAD_T = 24
+const PAD_B = 24
 const PLOT_W = W - PAD_L - PAD_R
 const PLOT_H = H - PAD_T - PAD_B
 const MID_Y = PAD_T + PLOT_H / 2
-const AMP = PLOT_H * 0.36
+const AMP = PLOT_H * 0.42
 
+/** One cycle, trough → peak → trough. */
 function waveY(t: number) {
-  return MID_Y - Math.sin(t * Math.PI * 2) * AMP
+  const phase = -Math.PI / 2 + t * Math.PI * 2
+  return MID_Y - Math.sin(phase) * AMP
 }
 
 function wavePath() {
-  const n = 80
+  const n = 96
   let d = ''
   for (let i = 0; i <= n; i++) {
     const t = i / n
@@ -34,58 +36,32 @@ function wavePath() {
   return d
 }
 
-function MapWave({
-  high,
-  low,
-  period,
-  goal,
-}: {
-  high: string
-  low: string
-  period: string
-  goal: string
-}) {
+function MapWave() {
   const { theme } = useTheme()
   const dark = theme === 'dark'
   const d = useMemo(() => wavePath(), [])
-  const peak = { x: PAD_L + 0.25 * PLOT_W, y: waveY(0.25) }
-  const trough = { x: PAD_L + 0.75 * PLOT_W, y: waveY(0.75) }
-  const ink = dark ? '#fafafa' : '#18181b'
-  const mute = dark ? '#a1a1aa' : '#71717a'
-  const grid = dark ? '#2a2a2e' : '#e4e4e7'
-  const bg = dark ? '#121214' : '#f4f4f5'
+  const peak = { x: PAD_L + 0.5 * PLOT_W, y: waveY(0.5) }
+  const left = { x: PAD_L, y: waveY(0) }
+  const right = { x: PAD_L + PLOT_W, y: waveY(1) }
+  const grid = dark ? '#27272a' : '#e4e4e7'
+  const line = dark ? '#fafafa' : '#18181b'
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Oscillation map">
-      <rect x={PAD_L} y={PAD_T} width={PLOT_W} height={PLOT_H} rx="6" fill={bg} />
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Oscillation">
       <line
         x1={PAD_L}
         y1={MID_Y}
         x2={PAD_L + PLOT_W}
         y2={MID_Y}
-        stroke={UP}
-        strokeOpacity={0.45}
-        strokeDasharray="6 7"
+        stroke={line}
+        strokeOpacity={0.12}
+        strokeDasharray="5 8"
       />
-      <path d={d} fill="none" stroke={grid} strokeWidth="8" />
-      <path d={d} fill="none" stroke={UP} strokeWidth="2.5" />
-      <circle cx={peak.x} cy={peak.y} r="6" fill={UP} />
-      <circle cx={trough.x} cy={trough.y} r="6" fill={DOWN} />
-      <text x={peak.x} y={peak.y - 16} textAnchor="middle" fill={ink} fontSize="15" fontWeight="600">
-        {high}
-      </text>
-      <text x={peak.x} y={peak.y - 34} textAnchor="middle" fill={mute} fontSize="11" letterSpacing="0.12em">
-        +AMP · NEVER SURPASS
-      </text>
-      <text x={trough.x} y={trough.y + 28} textAnchor="middle" fill={ink} fontSize="15" fontWeight="600">
-        {low}
-      </text>
-      <text x={trough.x} y={trough.y + 46} textAnchor="middle" fill={mute} fontSize="11" letterSpacing="0.12em">
-        FLOOR · NEVER BREAK
-      </text>
-      <text x={PAD_L + PLOT_W / 2} y={H - 8} textAnchor="middle" fill={mute} fontSize="12">
-        {period} · goal {goal}
-      </text>
+      <path d={d} fill="none" stroke={grid} strokeWidth="10" strokeLinecap="round" />
+      <path d={d} fill="none" stroke={line} strokeWidth="2.25" strokeLinecap="round" />
+      <circle cx={left.x} cy={left.y} r="5" fill={DOWN} />
+      <circle cx={peak.x} cy={peak.y} r="5" fill={UP} />
+      <circle cx={right.x} cy={right.y} r="5" fill={DOWN} />
     </svg>
   )
 }
@@ -116,27 +92,12 @@ function Field({
   )
 }
 
-const CHECKS = [
-  { id: 'lunch', label: 'Checkpoint after lunch', hint: 'Focus % and timetable — mid-day, not post-mortem.' },
-  { id: 'dinner', label: 'Checkpoint before dinner', hint: 'Same numbers. Correct today, not next week.' },
-  { id: 'eod', label: '60s end of day', hint: 'Block 1 on time · meditate · timetable. Yes / no.' },
-  { id: 'evening', label: 'Evening routine on time', hint: 'If this slips, the delay hits tomorrow’s work.' },
-] as const
-
-function todayChecksKey() {
-  return `zebbi-30d-checks-${todayISO()}`
-}
-
-function loadChecks(): Record<string, boolean> {
+function shortDate(iso: string) {
   try {
-    return JSON.parse(localStorage.getItem(todayChecksKey()) ?? '{}') as Record<string, boolean>
+    return format(parseISO(iso), 'd MMM')
   } catch {
-    return {}
+    return iso
   }
-}
-
-function saveChecks(next: Record<string, boolean>) {
-  localStorage.setItem(todayChecksKey(), JSON.stringify(next))
 }
 
 export function ReviewView({
@@ -153,7 +114,6 @@ export function ReviewView({
   const rows = useMemo(() => floorRows(entries, current), [entries, current])
   const [draftRaise, setDraftRaise] = useState<CommittedFloors | null>(null)
   const [editing, setEditing] = useState(false)
-  const [checks, setChecks] = useState(loadChecks)
   const proposed = (draftRaise ?? Object.fromEntries(rows.map((r) => [r.id, r.proposed]))) as CommittedFloors
 
   const patch = (partial: Partial<OscillationProtocol>) => {
@@ -165,98 +125,62 @@ export function ReviewView({
     setDraftRaise(null)
   }
 
-  const toggleCheck = (id: string) => {
-    const next = { ...checks, [id]: !checks[id] }
-    setChecks(next)
-    saveChecks(next)
-  }
-
   const pct = Math.round((progress.elapsed / progress.days) * 100)
-  const highLabel = '4h · 80% · TT 60%'
+  const highLabel = '4h · 80% focus · TT 60%'
   const lowLabel = `${current.committed.totalWorked}h · ${current.committed.avgFocus}% · TT ${current.committed.timetable}%`
-  const goalLabel = '6h · 85% · 85%'
 
   return (
     <div className="osc-fade-up mx-auto max-w-3xl pb-16">
       <PageHeader
-        className="mb-8"
-        eyebrow="30 days"
+        className="mb-10"
         title={
           <>
-            Raise the <span className="italic">floor</span>
+            Overcoming Oscillations <span className="italic">Hell</span>
           </>
         }
-        sub="Wait the window. Don’t change the plan. Then raise the low — never the high."
       />
 
-      <div className="mb-10 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
-        <MapWave
-          high={highLabel}
-          low={lowLabel}
-          period={`${current.periodDays}d period`}
-          goal={goalLabel}
-        />
+      <div className="mb-3 overflow-hidden">
+        <div className="text-center">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">High</p>
+          <p className="mt-1 font-display text-xl font-medium tracking-tight text-[var(--color-text)]">{highLabel}</p>
+        </div>
+        <MapWave />
+        <div className="flex items-end justify-between px-1">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">Floor</p>
+            <p className="mt-1 text-sm font-medium tabular-nums text-[var(--color-text)]">{lowLabel}</p>
+          </div>
+          <p className="text-xs text-[var(--color-muted)]">
+            {current.periodDays}d cycle · goal 6h · 85% · 85%
+          </p>
+        </div>
       </div>
 
-      <div className="mb-10 grid gap-3 sm:grid-cols-2">
+      <div className="mb-10 mt-8 grid gap-3 sm:grid-cols-2">
         <Card className="p-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-bad)]">
-            Peak → drop
+            When I’m on a roll
           </p>
-          <p className="mt-2 text-sm text-[var(--color-text)]">Skip evening routine. Presence gone.</p>
-          <p className="mt-2 text-xs leading-relaxed text-[var(--color-muted)]">
-            Kill it: routine on time. Don’t skip sleep to make up work.
+          <p className="mt-2 text-sm leading-relaxed text-[var(--color-text)]">
+            Evening routine late, or I’m not present. Then I’m not even aware I’m not aware — sleep slips, wake later, bed later.
+          </p>
+          <p className="mt-3 text-xs leading-relaxed text-[var(--color-muted)]">
+            Evening routine on time. If presence drops, that’s the drop. Don’t skip sleep to make up work.
           </p>
         </Card>
         <Card className="p-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: UP }}>
-            Rut → climb
+            When I’m in a rut
           </p>
-          <p className="mt-2 text-sm text-[var(--color-text)]">Zero work, huge list, guilt.</p>
-          <p className="mt-2 text-xs leading-relaxed text-[var(--color-muted)]">
-            Fuel: night routine over distraction. Sleep first, then the day charges.
+          <p className="mt-2 text-sm leading-relaxed text-[var(--color-text)]">
+            Close to zero work, huge todo list, guilt. Opening Insta, not here. Day after day.
+          </p>
+          <p className="mt-3 text-xs leading-relaxed text-[var(--color-muted)]">
+            Night routine over distraction. Sleep first — then I’m charged the next day.
           </p>
         </Card>
       </div>
-
-      <section className="mb-10">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]">
-          Today
-        </p>
-        <div className="space-y-2">
-          {CHECKS.map((c) => {
-            const on = Boolean(checks[c.id])
-            return (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => toggleCheck(c.id)}
-                className={`flex w-full items-start gap-3 rounded-2xl border px-3.5 py-3 text-left transition ${
-                  on
-                    ? 'border-[var(--color-border)] bg-[var(--color-surface-overlay)]'
-                    : 'border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-overlay)]'
-                }`}
-              >
-                <span
-                  className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] ${
-                    on
-                      ? 'border-[var(--color-text)] bg-[var(--color-text)] text-[var(--color-bg)]'
-                      : 'border-[var(--color-border)] text-transparent'
-                  }`}
-                >
-                  ✓
-                </span>
-                <span>
-                  <span className={`block text-sm ${on ? 'text-[var(--color-muted)] line-through' : 'text-[var(--color-text)]'}`}>
-                    {c.label}
-                  </span>
-                  <span className="mt-0.5 block text-xs text-[var(--color-muted)]">{c.hint}</span>
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </section>
 
       <section className="mb-10">
         <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]">
@@ -270,12 +194,14 @@ export function ReviewView({
                 <span className="text-xl text-[var(--color-muted)]"> / {progress.days}</span>
               </p>
               <p className="mt-1 text-xs text-[var(--color-muted)]">
-                {progress.start} → {progress.end}
-                {progress.complete ? ' · window closed' : ` · ${progress.remaining} days left`}
+                {shortDate(progress.start)} → {shortDate(progress.end)}
+                {progress.complete ? ' · window done' : ` · ${progress.remaining} days left`}
               </p>
             </div>
-            <p className="text-sm text-[var(--color-muted)]">
-              {progress.complete ? 'Ready to raise' : 'Wait. Don’t switch strategy.'}
+            <p className="max-w-[16rem] text-right text-sm leading-relaxed text-[var(--color-muted)]">
+              {progress.complete
+                ? 'Enough data. Raise the floor — not the high.'
+                : 'Keep the same plan. Don’t add or drop habits. One day is noise.'}
             </p>
           </div>
           <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-overlay)]">
@@ -332,7 +258,7 @@ export function ReviewView({
             Close cycle & raise floor
           </Btn>
           {!progress.complete && (
-            <p className="self-center text-xs text-[var(--color-muted)]">Unlocks after day {progress.days}.</p>
+            <p className="self-center text-xs text-[var(--color-muted)]">After day {progress.days}.</p>
           )}
         </div>
       </section>
@@ -345,7 +271,7 @@ export function ReviewView({
           <ul className="space-y-2 text-sm text-[var(--color-muted)]">
             {current.history.map((h) => (
               <li key={h.id}>
-                {h.startDate} → {h.endDate}
+                {shortDate(h.startDate)} → {shortDate(h.endDate)}
               </li>
             ))}
           </ul>
