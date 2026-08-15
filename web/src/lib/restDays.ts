@@ -1,4 +1,4 @@
-import type { DailyEntry } from '../types'
+import type { DailyEntry, DayOffKind } from '../types'
 import { REST_DATES } from '../types'
 
 /** Foc%, DW1–DW5, Tot, TT — één doorlopende rust-streep in maandweergave */
@@ -15,7 +15,10 @@ export const REST_WORK_FIELDS = [
 
 export const REST_WORK_FIELD_SET = new Set<string>(REST_WORK_FIELDS)
 
+/** Intended rest day */
 export const REST_STRIPE_BG = '#4A86E8'
+/** Day off that wasn't the plan (verhuizen, ziek, …) */
+export const REST_OTHER_STRIPE_BG = '#D97706'
 
 export function isKnownRestDate(date: string): boolean {
   return (REST_DATES as readonly string[]).includes(date)
@@ -23,6 +26,29 @@ export function isKnownRestDate(date: string): boolean {
 
 export function isRestDay(entry: Pick<DailyEntry, 'date' | 'dayType'>): boolean {
   return entry.dayType === 'rest' || isKnownRestDate(entry.date)
+}
+
+export function getDayOffKind(
+  entry: Pick<DailyEntry, 'date' | 'dayType' | 'dayOffKind'>,
+): DayOffKind {
+  if (entry.dayOffKind === 'other') return 'other'
+  return 'planned'
+}
+
+export function restStripeBg(
+  entry: Pick<DailyEntry, 'date' | 'dayType' | 'dayOffKind'>,
+): string {
+  return getDayOffKind(entry) === 'other' ? REST_OTHER_STRIPE_BG : REST_STRIPE_BG
+}
+
+export function restStripeTitle(
+  entry: Pick<DailyEntry, 'date' | 'dayType' | 'dayOffKind' | 'dayOffLabel'>,
+): string {
+  if (getDayOffKind(entry) === 'other') {
+    const label = entry.dayOffLabel?.trim()
+    return label ? `Day off — ${label}` : 'Day off (niet gepland)'
+  }
+  return 'Rustdag'
 }
 
 export function clearWorkFields(entry: DailyEntry): DailyEntry {
@@ -44,5 +70,17 @@ export function clearWorkFields(entry: DailyEntry): DailyEntry {
 
 export function applyRestDay(entry: DailyEntry): DailyEntry {
   if (!isRestDay(entry)) return entry
-  return clearWorkFields({ ...entry, dayType: 'rest' })
+  const kind = getDayOffKind(entry)
+  const next: DailyEntry = {
+    ...entry,
+    dayType: 'rest',
+    dayOffKind: kind,
+  }
+  if (kind === 'other' && entry.dayOffLabel?.trim()) {
+    next.dayOffLabel = entry.dayOffLabel.trim()
+  } else {
+    delete next.dayOffLabel
+    if (kind === 'planned') next.dayOffKind = 'planned'
+  }
+  return clearWorkFields(next)
 }

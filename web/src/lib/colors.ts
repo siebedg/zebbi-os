@@ -3,7 +3,7 @@ import { SLEEP_SCORE_TRACKED_FROM, VACATION_DATES } from '../types'
 import { enrichEntry } from './sessions'
 import { formatTime12 } from './utils'
 import type { IndicatorMode, Theme } from './theme'
-import { isRestDay, REST_STRIPE_BG, REST_WORK_FIELD_SET } from './restDays'
+import { isRestDay, REST_WORK_FIELD_SET, restStripeBg } from './restDays'
 
 export type ScoreLevel = 'excellent' | 'good' | 'ok' | 'poor' | 'empty' | 'bool-yes' | 'bool-no'
 
@@ -177,7 +177,7 @@ export function getCellStyle(
 
   if (entry && isRestDay(entry) && REST_WORK_FIELD_SET.has(field)) {
     if (neutral) return neutralSurface(theme, 'mid')
-    return { level: 'good', bg: REST_STRIPE_BG, text: '#ffffff' }
+    return { level: 'good', bg: restStripeBg(entry), text: '#ffffff' }
   }
 
   if (field === 'wakeTime' || field === 'bedTime') {

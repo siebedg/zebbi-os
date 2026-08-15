@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { ChevronDown, FileText, Heart, Upload } from 'lucide-react'
-import type { DailyEntry, DeepWorkSession } from '../types'
+import type { DailyEntry, DayOffKind, DeepWorkSession } from '../types'
 import { MAX_SESSIONS } from '../types'
 import {
   parseMultiDayNotes,
@@ -16,7 +16,14 @@ import {
   sessionDurationHours,
   sessionGrossHours,
 } from '../lib/sessions'
-import { applyRestDay, isKnownRestDate, isRestDay, REST_STRIPE_BG } from '../lib/restDays'
+import {
+  applyRestDay,
+  getDayOffKind,
+  isKnownRestDate,
+  isRestDay,
+  REST_OTHER_STRIPE_BG,
+  REST_STRIPE_BG,
+} from '../lib/restDays'
 import {
   computeSleepHours,
   entryHasData,
@@ -113,6 +120,10 @@ export function DailyEntryForm({
   const [sessions, setSessions] = useState<DeepWorkSession[]>(() => ensureSessions(initial))
   const [timetable, setTimetable] = useState<number | ''>(initial?.timetable ?? '')
   const [restDay, setRestDay] = useState(() => initialRestDay(initial, date))
+  const [dayOffKind, setDayOffKind] = useState<DayOffKind>(() =>
+    initial ? getDayOffKind(initial) : 'planned',
+  )
+  const [dayOffLabel, setDayOffLabel] = useState(initial?.dayOffLabel ?? '')
   const [pasteText, setPasteText] = useState('')
   const [showPaste, setShowPaste] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -136,6 +147,8 @@ export function DailyEntryForm({
     setSessions(ensureSessions(initial))
     setTimetable(initial?.timetable ?? '')
     setRestDay(initialRestDay(initial, initial?.date ?? date))
+    setDayOffKind(initial ? getDayOffKind(initial) : 'planned')
+    setDayOffLabel(initial?.dayOffLabel ?? '')
     setPasteText('')
     setParseMsg(null)
     setCollapsedDw(new Set())
@@ -146,6 +159,10 @@ export function DailyEntryForm({
     if (on) {
       setSessions([emptySession()])
       setTimetable('')
+      if (!dayOffKind) setDayOffKind('planned')
+    } else {
+      setDayOffKind('planned')
+      setDayOffLabel('')
     }
     setSaved(false)
   }
@@ -256,6 +273,14 @@ export function DailyEntryForm({
       ...(gratitude !== undefined ? { gratitude } : {}),
       ...(exercise !== undefined ? { exercise } : {}),
       dayType: restDay ? 'rest' : 'normal',
+      ...(restDay
+        ? {
+            dayOffKind,
+            ...(dayOffKind === 'other' && dayOffLabel.trim()
+              ? { dayOffLabel: dayOffLabel.trim() }
+              : {}),
+          }
+        : {}),
     }
 
     if (restDay) return enrichEntry(applyRestDay(entry))
@@ -405,6 +430,53 @@ export function DailyEntryForm({
               checked={restDay}
               onChange={setRestDayMode}
             />
+            {restDay && (
+              <div className="space-y-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-overlay)] p-3">
+                <div className="flex gap-1.5">
+                  {(
+                    [
+                      { id: 'planned' as const, label: 'Gepland', color: REST_STRIPE_BG },
+                      { id: 'other' as const, label: 'Anders', color: REST_OTHER_STRIPE_BG },
+                    ] as const
+                  ).map((opt) => {
+                    const on = dayOffKind === opt.id
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setDayOffKind(opt.id)
+                          setSaved(false)
+                        }}
+                        className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium transition ${
+                          on
+                            ? 'bg-[var(--color-text)] text-[var(--color-bg)]'
+                            : 'text-[var(--color-muted)] hover:bg-[var(--color-surface)]'
+                        }`}
+                      >
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ background: opt.color }}
+                          aria-hidden
+                        />
+                        {opt.label}
+                      </button>
+                    )
+                  })}
+                </div>
+                {dayOffKind === 'other' && (
+                  <Input
+                    label="Waarom (optioneel)"
+                    placeholder="verhuizen, ziek, …"
+                    value={dayOffLabel}
+                    onChange={(e) => {
+                      setDayOffLabel(e.target.value)
+                      setSaved(false)
+                    }}
+                  />
+                )}
+              </div>
+            )}
             <Input
               label="Meditation (min)"
               type="number"
@@ -436,9 +508,14 @@ export function DailyEntryForm({
 
         {restDay ? (
           <div className="space-y-2">
-            <div className="h-3 rounded-full" style={{ background: REST_STRIPE_BG }} />
+            <div
+              className="h-3 rounded-full"
+              style={{ background: dayOffKind === 'other' ? REST_OTHER_STRIPE_BG : REST_STRIPE_BG }}
+            />
             <p className="text-sm text-[var(--color-muted)]">
-              Rustdag — deep work en timetable zijn uitgeschakeld.
+              {dayOffKind === 'other'
+                ? `Day off${dayOffLabel.trim() ? ` — ${dayOffLabel.trim()}` : ''} · geen deep work / timetable.`
+                : 'Rustdag — deep work en timetable zijn uitgeschakeld.'}
             </p>
           </div>
         ) : (
@@ -598,7 +675,10 @@ export function DailyEntryForm({
         {restDay ? (
           <div className="space-y-2">
             <p className="text-sm font-medium text-[var(--color-text)]">Timetable score %</p>
-            <div className="h-3 rounded-full" style={{ background: REST_STRIPE_BG }} />
+            <div
+              className="h-3 rounded-full"
+              style={{ background: dayOffKind === 'other' ? REST_OTHER_STRIPE_BG : REST_STRIPE_BG }}
+            />
             <p className="text-xs text-[var(--color-muted)]">Niet van toepassing op rustdagen</p>
           </div>
         ) : (

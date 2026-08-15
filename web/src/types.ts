@@ -14,6 +14,9 @@ export interface DeepWorkSession {
 
 export type DayType = 'normal' | 'rest' | 'vacation' | 'travel'
 
+/** Planned rest (blue) vs life day-off that wasn't the plan (e.g. verhuizen). */
+export type DayOffKind = 'planned' | 'other'
+
 export interface DailyEntry {
   date: string
   /** ISO timestamp — nieuwste wint bij sync tussen apparaten */
@@ -28,6 +31,10 @@ export interface DailyEntry {
   exercise?: boolean
   diet?: string
   dayType?: DayType
+  /** Only when dayType is rest: intended rest vs other day off. */
+  dayOffKind?: DayOffKind
+  /** Short reason when dayOffKind is other (verhuizen, ziek, …). */
+  dayOffLabel?: string
   sessions?: DeepWorkSession[]
   avgFocus?: number
   totalHoursWorked?: number

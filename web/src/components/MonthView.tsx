@@ -28,10 +28,11 @@ import {
   isVacationDay,
 } from '../lib/colors'
 import {
-  REST_STRIPE_BG,
   REST_WORK_FIELD_SET,
   REST_WORK_FIELDS,
   isRestDay,
+  restStripeBg,
+  restStripeTitle,
 } from '../lib/restDays'
 import { monthColumnAverageValues, monthColumnAverages } from '../lib/monthlyStats'
 import { filterMonthColumns } from '../lib/fieldVisibility'
@@ -219,10 +220,10 @@ export function MonthView({
                           <div
                             className="h-full min-h-[16px] rounded-none"
                             style={{
-                              background: REST_STRIPE_BG,
+                              background: restStripeBg(entry),
                               opacity: memorialCellOpacity,
                             }}
-                            title="Rustdag"
+                            title={restStripeTitle(entry)}
                           />
                         </td>,
                       ]

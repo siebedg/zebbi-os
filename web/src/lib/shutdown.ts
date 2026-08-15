@@ -27,7 +27,9 @@ export function createDefaultShutdownTemplates(): ShutdownTemplate[] {
           'Remove friction (War Map, To-do, V1.1, timer, work)',
           'Turn computer in greyscale',
         ]),
-        section('Body', ['Take yoga mat → now do some yoga with Bend']),
+        section('Body', [
+          'Take yoga mat → now do some yoga with Bend — op het einde & tennisbal 🎾',
+        ]),
       ],
       updatedAt: now,
     },
@@ -56,6 +58,27 @@ export function normalizeShutdownTemplate(
   fallback?: ShutdownTemplate,
 ): ShutdownTemplate {
   const base = fallback ?? createDefaultShutdownTemplates()[0]
+  const sections =
+    value.sections
+      ?.map((sectionValue, idx) => ({
+        id: sectionValue.id || `${base.id}-section-${idx + 1}`,
+        title: sectionValue.title?.trim() || `Section ${idx + 1}`,
+            items: (sectionValue.items ?? [])
+              .map((item) => {
+                const trimmed = item.trim()
+                if (!trimmed) return ''
+                if (
+                  /yoga\s+with\s+bend|take\s+yoga\s+mat/i.test(trimmed) &&
+                  !/tennis/i.test(trimmed)
+                ) {
+                  return 'Take yoga mat → now do some yoga with Bend — op het einde & tennisbal 🎾'
+                }
+                return trimmed
+              })
+              .filter(Boolean),
+      }))
+      .filter((sectionValue) => sectionValue.items.length > 0) ?? base.sections
+
   return {
     id: value.id || base.id || uid(),
     name: value.name?.trim() || base.name,
@@ -68,14 +91,7 @@ export function normalizeShutdownTemplate(
     imageDataUrl: value.imageDataUrl || base.imageDataUrl,
     imageName: value.imageName || base.imageName,
     killCommand: value.killCommand?.trim() || base.killCommand,
-    sections:
-      value.sections
-        ?.map((sectionValue, idx) => ({
-          id: sectionValue.id || `${base.id}-section-${idx + 1}`,
-          title: sectionValue.title?.trim() || `Section ${idx + 1}`,
-          items: (sectionValue.items ?? []).map((item) => item.trim()).filter(Boolean),
-        }))
-        .filter((sectionValue) => sectionValue.items.length > 0) ?? base.sections,
+    sections,
     updatedAt: value.updatedAt || base.updatedAt || new Date().toISOString(),
   }
 }
