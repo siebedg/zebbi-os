@@ -52,8 +52,6 @@ function ShutdownItemLabel({ text }: { text: string }) {
         Take yoga mat
         <ArrowRight className="h-4 w-4 shrink-0 text-[var(--color-muted)]" strokeWidth={2.25} />
         now do some yoga with Bend 😊
-        <span className="text-[var(--color-muted)]">—</span>
-        op het einde & 🎾
       </span>
     )
   }
