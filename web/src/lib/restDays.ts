@@ -17,8 +17,8 @@ export const REST_WORK_FIELD_SET = new Set<string>(REST_WORK_FIELDS)
 
 /** Intended rest day */
 export const REST_STRIPE_BG = '#4A86E8'
-/** Day off that wasn't the plan (verhuizen, ziek, …) */
-export const REST_OTHER_STRIPE_BG = '#D97706'
+/** Day off that wasn't the plan — same blue, paler tint */
+export const REST_OTHER_STRIPE_BG = '#8AB0E8'
 
 export function isKnownRestDate(date: string): boolean {
   return (REST_DATES as readonly string[]).includes(date)
