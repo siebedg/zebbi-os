@@ -164,6 +164,7 @@ function AppShell() {
               shutdownTemplates={state.shutdownTemplates ?? []}
               activeShutdownTemplateId={state.activeShutdownTemplateId}
               onSaveShutdownTemplate={saveShutdownTemplate}
+              onSetActiveShutdownTemplate={setActiveShutdownTemplate}
             />
           }
         />

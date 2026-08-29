@@ -5,6 +5,7 @@ import { PALETTE_OPTIONS, type PaletteId } from '../lib/theme'
 import { KILL_INSTALLER_PATH } from '../lib/shutdownKill'
 import { ExportPanel } from './ExportPanel'
 import { HabitContractsImage, saveHabitContractImage } from './HabitContractsImage'
+import { ShutdownRoutineEditor } from './ShutdownRoutineEditor'
 import { WhoopPanel } from './WhoopPanel'
 import { PageHeader, Pill, Toggle } from './ui'
 
@@ -14,12 +15,14 @@ export function SettingsView({
   shutdownTemplates,
   activeShutdownTemplateId,
   onSaveShutdownTemplate,
+  onSetActiveShutdownTemplate,
 }: {
   entries: DailyEntry[]
   weightLog?: WeightEntry[]
   shutdownTemplates: ShutdownTemplate[]
   activeShutdownTemplateId?: string
   onSaveShutdownTemplate: (template: ShutdownTemplate) => void
+  onSetActiveShutdownTemplate?: (id: string) => void
 }) {
   const { theme, setTheme, palette, setPalette, indicatorMode, setIndicatorMode } = useTheme()
   const shutdownTemplate =
@@ -131,6 +134,21 @@ export function SettingsView({
         <p className="mt-2 text-xs leading-relaxed text-[var(--color-muted)]">
           Eerste keer op deze PC: download en run. Daarna sluit de shutdown-knop Discord, Slack, Chrome, Cursor, enz.
         </p>
+
+        {shutdownTemplates.length > 0 && (
+          <div className="mt-6">
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
+              Routine
+            </p>
+            <ShutdownRoutineEditor
+              templates={shutdownTemplates}
+              activeTemplateId={activeShutdownTemplateId}
+              onSave={onSaveShutdownTemplate}
+              onSetActive={onSetActiveShutdownTemplate}
+            />
+          </div>
+        )}
+
         {shutdownTemplate && (
           <div className="mt-6">
             <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">

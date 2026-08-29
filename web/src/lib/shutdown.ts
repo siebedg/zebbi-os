@@ -63,19 +63,7 @@ export function normalizeShutdownTemplate(
       ?.map((sectionValue, idx) => ({
         id: sectionValue.id || `${base.id}-section-${idx + 1}`,
         title: sectionValue.title?.trim() || `Section ${idx + 1}`,
-            items: (sectionValue.items ?? [])
-              .map((item) => {
-                const trimmed = item.trim()
-                if (!trimmed) return ''
-                if (
-                  /yoga\s+with\s+bend|take\s+yoga\s+mat/i.test(trimmed) &&
-                  !/tennis/i.test(trimmed)
-                ) {
-                  return 'Take yoga mat → now do some yoga with Bend — op het einde & tennisbal 🎾'
-                }
-                return trimmed
-              })
-              .filter(Boolean),
+            items: (sectionValue.items ?? []).map((item) => item.trim()).filter(Boolean),
       }))
       .filter((sectionValue) => sectionValue.items.length > 0) ?? base.sections
 
