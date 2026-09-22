@@ -3,6 +3,7 @@ import { nl } from 'date-fns/locale'
 import type { DailyEntry } from '../types'
 import { SLEEP_SCORE_TRACKED_FROM } from '../types'
 import { enrichEntry } from './sessions'
+import { isSchoolDay } from './schoolDays'
 import { entryHasData, formatTime12, parseTimeToMinutes } from './utils'
 
 const FIRST_MONTH = startOfMonth(new Date(2025, 11, 1))
@@ -94,9 +95,11 @@ export function summarizeMonth(monthKey: string, entries: DailyEntry[]): MonthSu
   const meds = rows.map((e) => e.meditation).filter((v): v is number => v != null)
   const grRows = rows.filter((e) => e.gratitude != null)
   const exRows = rows.filter((e) => e.exercise != null)
-  const focuses = rows.map((e) => e.avgFocus).filter((v): v is number => v != null)
-  const dws = rows.map((e) => e.totalDeepWork).filter((v): v is number => v != null)
-  const tts = rows.map((e) => e.timetable).filter((v): v is number => v != null)
+  // School days keep their own focus/hours — exclude from deep-work averages
+  const workRows = rows.filter((e) => !isSchoolDay(e))
+  const focuses = workRows.map((e) => e.avgFocus).filter((v): v is number => v != null)
+  const dws = workRows.map((e) => e.totalDeepWork).filter((v): v is number => v != null)
+  const tts = workRows.map((e) => e.timetable).filter((v): v is number => v != null)
 
   const grRate = grRows.length ? grRows.filter((e) => e.gratitude).length / grRows.length : null
   const exRate = exRows.length ? exRows.filter((e) => e.exercise).length / exRows.length : null
@@ -184,6 +187,7 @@ function minutesToTimeStr(m: number): string {
 /** Gemiddelden per maandkolom voor de onderste rij in MonthView */
 export function monthColumnAverages(monthKey: string, entries: DailyEntry[]): Record<string, string> {
   const rows = entries.filter((e) => e.date.startsWith(monthKey)).map(enrichEntry)
+  const workRows = rows.filter((e) => !isSchoolDay(e))
   const out: Record<string, string> = {}
   if (rows.length === 0) return out
 
@@ -218,24 +222,24 @@ export function monthColumnAverages(monthKey: string, entries: DailyEntry[]): Re
     out.exercise = `${Math.round((exRows.filter((e) => e.exercise).length / exRows.length) * 100)}%`
   }
 
-  const focuses = rows.map((e) => e.avgFocus).filter((v): v is number => v != null)
+  const focuses = workRows.map((e) => e.avgFocus).filter((v): v is number => v != null)
   const focusAvg = avg(focuses)
   if (focusAvg != null) out.avgFocus = `${Math.round(focusAvg)}`
 
   for (let i = 1; i <= 5; i++) {
     const key = `deepWork${i}` as const
-    const vals = rows
+    const vals = workRows
       .map((e) => e[key])
       .filter((v): v is number => v != null && !Number.isNaN(v))
     const dwAvg = avg(vals)
     if (dwAvg != null) out[key] = dwAvg.toFixed(2)
   }
 
-  const dws = rows.map((e) => e.totalDeepWork).filter((v): v is number => v != null)
+  const dws = workRows.map((e) => e.totalDeepWork).filter((v): v is number => v != null)
   const dwTotAvg = avg(dws)
   if (dwTotAvg != null) out.totalDeepWork = dwTotAvg.toFixed(2)
 
-  const tts = rows.map((e) => e.timetable).filter((v): v is number => v != null)
+  const tts = workRows.map((e) => e.timetable).filter((v): v is number => v != null)
   const ttAvg = avg(tts)
   if (ttAvg != null) out.timetable = `${Math.round(ttAvg)}`
 
@@ -248,6 +252,7 @@ export function monthColumnAverageValues(
   entries: DailyEntry[],
 ): Record<string, number | null> {
   const rows = entries.filter((e) => e.date.startsWith(monthKey)).map(enrichEntry)
+  const workRows = rows.filter((e) => !isSchoolDay(e))
   const out: Record<string, number | null> = {}
   if (rows.length === 0) return out
 
@@ -259,9 +264,9 @@ export function monthColumnAverageValues(
   const meds = rows.map((e) => e.meditation).filter((v): v is number => v != null)
   const grRows = rows.filter((e) => e.gratitude != null)
   const exRows = rows.filter((e) => e.exercise != null)
-  const focuses = rows.map((e) => e.avgFocus).filter((v): v is number => v != null)
-  const dws = rows.map((e) => e.totalDeepWork).filter((v): v is number => v != null)
-  const tts = rows.map((e) => e.timetable).filter((v): v is number => v != null)
+  const focuses = workRows.map((e) => e.avgFocus).filter((v): v is number => v != null)
+  const dws = workRows.map((e) => e.totalDeepWork).filter((v): v is number => v != null)
+  const tts = workRows.map((e) => e.timetable).filter((v): v is number => v != null)
 
   if (avg(wakeMins) != null) out.wakeTime = avg(wakeMins)!
   if (avg(bedMins) != null) out.bedTime = avg(bedMins)!
@@ -276,7 +281,7 @@ export function monthColumnAverageValues(
 
   for (let i = 1; i <= 5; i++) {
     const key = `deepWork${i}` as const
-    const vals = rows
+    const vals = workRows
       .map((e) => e[key])
       .filter((v): v is number => v != null && !Number.isNaN(v))
     if (avg(vals) != null) out[key] = avg(vals)!

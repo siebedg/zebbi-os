@@ -34,6 +34,7 @@ import {
   restStripeBg,
   restStripeTitle,
 } from '../lib/restDays'
+import { isSchoolDay, SCHOOL_STRIPE_BG, schoolStripeTitle } from '../lib/schoolDays'
 import { monthColumnAverageValues, monthColumnAverages } from '../lib/monthlyStats'
 import { filterMonthColumns } from '../lib/fieldVisibility'
 import { useFieldVisibility } from '../hooks/useFieldVisibility'
@@ -171,8 +172,13 @@ export function MonthView({
               const isToday = dateStr === format(new Date(), 'yyyy-MM-dd')
               const isVacation = isVacationDay(entry)
               const isRest = isRestDay(entry)
+              const isSchool = isSchoolDay(entry)
               const specialStyle =
-                isRest || entry.dayType === 'travel' ? getRestStyle(theme) : null
+                isRest || entry.dayType === 'travel'
+                  ? getRestStyle(theme)
+                  : isSchool
+                    ? { level: 'good' as const, bg: SCHOOL_STRIPE_BG, text: '#ffffff' }
+                    : null
 
               return (
                 <tr
@@ -182,6 +188,7 @@ export function MonthView({
                   className={`border-b border-[var(--color-border)] ${
                     onSelectDate ? 'cursor-pointer hover:bg-[var(--color-surface-overlay)] active:bg-[var(--color-surface-overlay)]' : ''
                   } ${isToday ? 'bg-[var(--color-accent-soft)]' : ''}`}
+                  title={isSchool ? schoolStripeTitle(entry) : isRest ? restStripeTitle(entry) : undefined}
                 >
                   <td
                     className={`${stickyCell} left-0 border-r border-[var(--color-border)] text-center font-mono text-[var(--color-text)] ${isToday ? '!bg-[var(--color-accent-soft)]' : stickyBg}`}

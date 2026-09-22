@@ -25,6 +25,14 @@ import {
   REST_STRIPE_BG,
 } from '../lib/restDays'
 import {
+  applySchoolDay,
+  emptySchoolSession,
+  ensureSchoolSessions,
+  isSchoolDay,
+  MAX_SCHOOL_SESSIONS,
+  SCHOOL_STRIPE_BG,
+} from '../lib/schoolDays'
+import {
   computeSleepHours,
   entryHasData,
   formatDateNL,
@@ -36,8 +44,13 @@ import { FieldVisibilityPanel } from './FieldVisibilityPanel'
 import { useFieldVisibility } from '../hooks/useFieldVisibility'
 
 function initialRestDay(entry?: DailyEntry, date?: string): boolean {
+  if (entry && isSchoolDay(entry)) return false
   if (!entry) return isKnownRestDate(date ?? todayISO())
   return isRestDay(entry)
+}
+
+function initialSchoolDay(entry?: DailyEntry): boolean {
+  return entry ? isSchoolDay(entry) : false
 }
 
 function SleepField({
@@ -118,8 +131,13 @@ export function DailyEntryForm({
   const [gratitude, setGratitude] = useState<boolean | undefined>(initial?.gratitude)
   const [exercise, setExercise] = useState<boolean | undefined>(initial?.exercise)
   const [sessions, setSessions] = useState<DeepWorkSession[]>(() => ensureSessions(initial))
+  const [schoolSessions, setSchoolSessions] = useState<DeepWorkSession[]>(() =>
+    ensureSchoolSessions(initial),
+  )
+  const [schoolFocus, setSchoolFocus] = useState<number | ''>(initial?.schoolFocus ?? '')
   const [timetable, setTimetable] = useState<number | ''>(initial?.timetable ?? '')
   const [restDay, setRestDay] = useState(() => initialRestDay(initial, date))
+  const [schoolDay, setSchoolDay] = useState(() => initialSchoolDay(initial))
   const [dayOffKind, setDayOffKind] = useState<DayOffKind>(() =>
     initial ? getDayOffKind(initial) : 'planned',
   )
@@ -128,7 +146,7 @@ export function DailyEntryForm({
   const [showPaste, setShowPaste] = useState(false)
   const [saved, setSaved] = useState(false)
   const [parseMsg, setParseMsg] = useState<string | null>(null)
-  /** Collapsed deep-work session ids */
+  /** Collapsed deep-work / school session ids */
   const [collapsedDw, setCollapsedDw] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
@@ -145,8 +163,11 @@ export function DailyEntryForm({
     setGratitude(initial?.gratitude)
     setExercise(initial?.exercise)
     setSessions(ensureSessions(initial))
+    setSchoolSessions(ensureSchoolSessions(initial))
+    setSchoolFocus(initial?.schoolFocus ?? '')
     setTimetable(initial?.timetable ?? '')
     setRestDay(initialRestDay(initial, initial?.date ?? date))
+    setSchoolDay(initialSchoolDay(initial))
     setDayOffKind(initial ? getDayOffKind(initial) : 'planned')
     setDayOffLabel(initial?.dayOffLabel ?? '')
     setPasteText('')
@@ -157,6 +178,9 @@ export function DailyEntryForm({
   const setRestDayMode = (on: boolean) => {
     setRestDay(on)
     if (on) {
+      setSchoolDay(false)
+      setSchoolSessions([emptySchoolSession(), emptySchoolSession()])
+      setSchoolFocus('')
       setSessions([emptySession()])
       setTimetable('')
       if (!dayOffKind) setDayOffKind('planned')
@@ -167,9 +191,37 @@ export function DailyEntryForm({
     setSaved(false)
   }
 
+  const setSchoolDayMode = (on: boolean) => {
+    setSchoolDay(on)
+    if (on) {
+      setRestDay(false)
+      setDayOffKind('planned')
+      setDayOffLabel('')
+      setSessions([emptySession()])
+      setTimetable('')
+      setSchoolSessions((list) =>
+        list.length >= 2 ? list : [emptySchoolSession(), emptySchoolSession()],
+      )
+    } else {
+      setSchoolFocus('')
+      setSchoolSessions([emptySchoolSession(), emptySchoolSession()])
+    }
+    setSaved(false)
+  }
+
   const totals = useMemo(
     () => computeWorkTotals(sessions.filter((s) => s.startTime && s.endTime)),
     [sessions],
+  )
+
+  const schoolTotals = useMemo(
+    () =>
+      computeWorkTotals(
+        schoolSessions
+          .filter((s) => s.startTime && s.endTime)
+          .map((s) => ({ ...s, focusPercent: 0 })),
+      ),
+    [schoolSessions],
   )
 
   const canDelete = Boolean(initial && entryHasData(initial) && onDelete)
@@ -179,13 +231,33 @@ export function DailyEntryForm({
     setSaved(false)
   }
 
+  const updateSchoolSession = (id: string, patch: Partial<DeepWorkSession>) => {
+    setSchoolSessions((list) => list.map((s) => (s.id === id ? { ...s, ...patch } : s)))
+    setSaved(false)
+  }
+
   const addSession = () => {
     if (sessions.length >= MAX_SESSIONS) return
     setSessions((list) => [...list, emptySession()])
   }
 
+  const addSchoolSession = () => {
+    if (schoolSessions.length >= MAX_SCHOOL_SESSIONS) return
+    setSchoolSessions((list) => [...list, emptySchoolSession()])
+  }
+
   const removeSession = (id: string) => {
     setSessions((list) => (list.length <= 1 ? list : list.filter((s) => s.id !== id)))
+    setCollapsedDw((prev) => {
+      if (!prev.has(id)) return prev
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
+  }
+
+  const removeSchoolSession = (id: string) => {
+    setSchoolSessions((list) => (list.length <= 1 ? list : list.filter((s) => s.id !== id)))
     setCollapsedDw((prev) => {
       if (!prev.has(id)) return prev
       const next = new Set(prev)
@@ -219,6 +291,7 @@ export function DailyEntryForm({
     const workBlocks = parseWorkBlocks(text)
     if (workBlocks.length > 0) {
       setRestDay(false)
+      setSchoolDay(false)
       setSessions(workBlocks.slice(0, MAX_SESSIONS).map((s) => ({ ...s, id: uid() })))
       setParseMsg(`${workBlocks.length} deep work blok(ken) → DW1–DW${workBlocks.length}`)
       setShowPaste(false)
@@ -242,8 +315,15 @@ export function DailyEntryForm({
         setShowPaste(false)
         return
       }
+      if (parsed.dayType === 'school') {
+        setSchoolDayMode(true)
+        setParseMsg('Schooldag herkend')
+        setShowPaste(false)
+        return
+      }
       if (parsed.timetable != null) setTimetable(parsed.timetable)
       if (parsed.sessions.length > 0) {
+        setSchoolDay(false)
         setSessions(parsed.sessions.slice(0, MAX_SESSIONS).map((s) => ({ ...s, id: uid() })))
         setParseMsg(`${parsed.sessions.length} deep work sessie(s) herkend`)
         setShowPaste(false)
@@ -272,7 +352,7 @@ export function DailyEntryForm({
       meditation: meditation !== '' ? Number(meditation) : undefined,
       ...(gratitude !== undefined ? { gratitude } : {}),
       ...(exercise !== undefined ? { exercise } : {}),
-      dayType: restDay ? 'rest' : 'normal',
+      dayType: restDay ? 'rest' : schoolDay ? 'school' : 'normal',
       ...(restDay
         ? {
             dayOffKind,
@@ -284,6 +364,16 @@ export function DailyEntryForm({
     }
 
     if (restDay) return enrichEntry(applyRestDay(entry))
+
+    if (schoolDay) {
+      return enrichEntry(
+        applySchoolDay({
+          ...entry,
+          schoolSessions: schoolSessions.filter((s) => s.startTime && s.endTime),
+          schoolFocus: schoolFocus !== '' ? Number(schoolFocus) : undefined,
+        }),
+      )
+    }
 
     return enrichEntry({
       ...entry,
@@ -430,6 +520,11 @@ export function DailyEntryForm({
               checked={restDay}
               onChange={setRestDayMode}
             />
+            <Toggle
+              label="Schooldag (lesblokken, geen deep work)"
+              checked={schoolDay}
+              onChange={setSchoolDayMode}
+            />
             {restDay && (
               <div className="space-y-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-overlay)] p-3">
                 <div className="flex gap-1.5">
@@ -477,6 +572,16 @@ export function DailyEntryForm({
                 )}
               </div>
             )}
+            {schoolDay && (
+              <div className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-overlay)] px-3 py-2 text-xs text-[var(--color-muted)]">
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ background: SCHOOL_STRIPE_BG }}
+                  aria-hidden
+                />
+                Lesblokken tellen niet mee in deep-work averages
+              </div>
+            )}
             <Input
               label="Meditation (min)"
               type="number"
@@ -492,16 +597,27 @@ export function DailyEntryForm({
         </Card>
       </div>
 
-      <Card className={`p-4 sm:p-5 ${restDay ? 'opacity-90' : ''}`}>
+      <Card className={`p-4 sm:p-5 ${restDay || schoolDay ? 'opacity-90' : ''}`}>
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-medium text-[var(--color-text)]">Deep work sessions</h3>
-          {!restDay && sessions.length < MAX_SESSIONS && (
+          <h3 className="text-sm font-medium text-[var(--color-text)]">
+            {schoolDay ? 'Lesblokken' : 'Deep work sessions'}
+          </h3>
+          {!restDay && !schoolDay && sessions.length < MAX_SESSIONS && (
             <button
               type="button"
               onClick={addSession}
               className="text-xs text-[var(--color-accent)] hover:underline"
             >
               + sessie
+            </button>
+          )}
+          {schoolDay && schoolSessions.length < MAX_SCHOOL_SESSIONS && (
+            <button
+              type="button"
+              onClick={addSchoolSession}
+              className="text-xs text-[var(--color-accent)] hover:underline"
+            >
+              + lesblok
             </button>
           )}
         </div>
@@ -517,6 +633,158 @@ export function DailyEntryForm({
                 ? `Day off${dayOffLabel.trim() ? ` — ${dayOffLabel.trim()}` : ''} · geen deep work / timetable.`
                 : 'Rustdag — deep work en timetable zijn uitgeschakeld.'}
             </p>
+          </div>
+        ) : schoolDay ? (
+          <div className="space-y-3">
+            <div
+              className="h-1.5 rounded-full"
+              style={{ background: SCHOOL_STRIPE_BG }}
+              title="Schooldag"
+            />
+            {schoolSessions.map((s, i) => {
+              const collapsed = collapsedDw.has(s.id)
+              const netH = sessionDurationHours(s)
+              const breaks = sessionBreakMinutes(s)
+              const hasClock = Boolean(s.startTime && s.endTime)
+              const hasDur = s.durationHours != null
+              const durationLabel =
+                hasClock || hasDur
+                  ? breaks > 0
+                    ? `${netH.toFixed(2)}u (−${breaks}m)`
+                    : `${netH.toFixed(2)}u`
+                  : '—'
+              const rangeLabel =
+                s.startTime && s.endTime
+                  ? `${s.startTime} → ${s.endTime}`
+                  : collapsed
+                    ? 'Leeg'
+                    : null
+
+              return (
+                <div
+                  key={s.id}
+                  className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-overlay)] p-3"
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleDwCollapsed(s.id)}
+                    className="flex w-full items-center justify-between gap-2 text-left"
+                    aria-expanded={!collapsed}
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <ChevronDown
+                        className={`h-4 w-4 shrink-0 text-[var(--color-muted)] transition ${
+                          collapsed ? '-rotate-90' : ''
+                        }`}
+                      />
+                      <span className="text-sm font-medium text-[var(--color-text)]">
+                        Deep work {i + 1}
+                      </span>
+                      {collapsed && rangeLabel && (
+                        <span className="truncate text-xs text-[var(--color-muted)]">
+                          {rangeLabel}
+                        </span>
+                      )}
+                    </span>
+                    <span className="shrink-0 text-xs tabular-nums text-[var(--color-muted)]">
+                      {durationLabel}
+                    </span>
+                  </button>
+
+                  {!collapsed && (
+                    <>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                        <label className="block">
+                          <span className="mb-1 block text-sm font-medium text-[var(--color-text)]">
+                            Start
+                          </span>
+                          <TimeInput12
+                            value={s.startTime}
+                            onChange={(v) => updateSchoolSession(s.id, { startTime: v })}
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="mb-1 block text-sm font-medium text-[var(--color-text)]">
+                            Einde
+                          </span>
+                          <TimeInput12
+                            value={s.endTime}
+                            onChange={(v) => updateSchoolSession(s.id, { endTime: v })}
+                          />
+                        </label>
+                        <Input
+                          label="Break (min)"
+                          type="number"
+                          min="0"
+                          value={s.breakMinutes ?? ''}
+                          onChange={(e) => {
+                            const raw = e.target.value
+                            if (raw === '') {
+                              updateSchoolSession(s.id, { breakMinutes: undefined })
+                              return
+                            }
+                            const n = parseInt(raw, 10)
+                            updateSchoolSession(s.id, {
+                              breakMinutes: Number.isFinite(n) && n > 0 ? n : undefined,
+                            })
+                          }}
+                        />
+                      </div>
+                      {hasClock && breaks > 0 && (
+                        <p className="mt-2 text-xs text-[var(--color-muted)]">
+                          Bruto {sessionGrossHours(s).toFixed(2)}u − {breaks}m break ={' '}
+                          <span className="tabular-nums text-[var(--color-text)]">
+                            {netH.toFixed(2)}u net
+                          </span>
+                        </p>
+                      )}
+                      {schoolSessions.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeSchoolSession(s.id)}
+                          className="mt-2 text-xs text-[var(--color-bad)] hover:underline"
+                        >
+                          Verwijder
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              )
+            })}
+
+            <div className="grid gap-4 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-overlay)] p-4 text-sm sm:grid-cols-3">
+              <div>
+                <span className="text-[var(--color-muted)]">Net les</span>
+                <p className="mt-0.5 text-lg font-semibold tabular-nums">
+                  {schoolTotals.totalHoursNet}u
+                </p>
+              </div>
+              <div>
+                <span className="text-[var(--color-muted)]">Bruto</span>
+                <p className="mt-0.5 text-lg font-semibold tabular-nums text-[var(--color-muted)]">
+                  {schoolTotals.totalHoursWorked}u
+                  {schoolTotals.distractionMinutes > 0 && (
+                    <span className="ml-1 text-xs font-normal">
+                      (−{schoolTotals.distractionMinutes}m)
+                    </span>
+                  )}
+                </p>
+              </div>
+              <div>
+                <Input
+                  label="Focus % (hele dag)"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={schoolFocus}
+                  onChange={(e) => {
+                    setSchoolFocus(e.target.value ? parseFloat(e.target.value) : '')
+                    setSaved(false)
+                  }}
+                />
+              </div>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">
@@ -646,7 +914,7 @@ export function DailyEntryForm({
           </div>
         )}
 
-        {!restDay && (
+        {!restDay && !schoolDay && (
           <div className="mt-4 grid gap-4 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-overlay)] p-4 text-sm sm:grid-cols-3">
             <div>
               <span className="text-[var(--color-muted)]">Net gewerkt</span>
@@ -672,14 +940,24 @@ export function DailyEntryForm({
       </Card>
 
       <Card className="p-4 sm:p-5">
-        {restDay ? (
+        {restDay || schoolDay ? (
           <div className="space-y-2">
             <p className="text-sm font-medium text-[var(--color-text)]">Timetable score %</p>
             <div
               className="h-3 rounded-full"
-              style={{ background: dayOffKind === 'other' ? REST_OTHER_STRIPE_BG : REST_STRIPE_BG }}
+              style={{
+                background: restDay
+                  ? dayOffKind === 'other'
+                    ? REST_OTHER_STRIPE_BG
+                    : REST_STRIPE_BG
+                  : SCHOOL_STRIPE_BG,
+              }}
             />
-            <p className="text-xs text-[var(--color-muted)]">Niet van toepassing op rustdagen</p>
+            <p className="text-xs text-[var(--color-muted)]">
+              {restDay
+                ? 'Niet van toepassing op rustdagen'
+                : 'Niet van toepassing op schooldagen'}
+            </p>
           </div>
         ) : (
           <Input

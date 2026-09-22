@@ -14,9 +14,11 @@ Open de URL uit de terminal (meestal `http://localhost:5173`).
 
 ## Functies
 
-- **Vandaag** — slaap, habits, deep work sessies, rustdagen
+- **Vandaag** — slaap, habits, deep work sessies, rustdagen, schooldagen
 - **Maand** — volledig maandrooster (dec 2025+)
 - **Grafieken** — trends over tijd
+
+Schooldagen (oranje) gebruiken dezelfde dag-log, met ~2 lesblokken + één overall focus-score. Lesuren tellen niet mee in deep-work averages.
 
 ## Deep work plakken
 

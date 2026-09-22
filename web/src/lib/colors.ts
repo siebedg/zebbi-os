@@ -1,9 +1,22 @@
 import type { DailyEntry } from '../types'
 import { SLEEP_SCORE_TRACKED_FROM, VACATION_DATES } from '../types'
-import { enrichEntry } from './sessions'
+import { enrichEntry, sessionGrossHours, sessionNetHours } from './sessions'
 import { formatTime12 } from './utils'
 import type { IndicatorMode, Theme } from './theme'
 import { isRestDay, REST_WORK_FIELD_SET, restStripeBg } from './restDays'
+import {
+  activeSchoolSessions,
+  isSchoolDay,
+  SCHOOL_STRIPE_BG,
+} from './schoolDays'
+
+/** Month columns that surface school data (same labels as deep work). */
+export const SCHOOL_DISPLAY_FIELDS = new Set([
+  'avgFocus',
+  'deepWork1',
+  'deepWork2',
+  'totalDeepWork',
+])
 
 export type ScoreLevel = 'excellent' | 'good' | 'ok' | 'poor' | 'empty' | 'bool-yes' | 'bool-no'
 
@@ -154,6 +167,32 @@ export function getRowStyle(entry: DailyEntry, theme: Theme): CellStyle | null {
 export function getDisplayValue(entry: DailyEntry, field: string): unknown {
   const e = enrichEntry(entry)
   if (field === 'sleepScore' && e.date < SLEEP_SCORE_TRACKED_FROM) return undefined
+
+  // School days: surface lesson hours / overall focus in the same month columns
+  // without writing deep-work fields on the entry itself.
+  if (isSchoolDay(e)) {
+    if (field === 'avgFocus') return e.schoolFocus
+    const active = activeSchoolSessions(e)
+    if (field === 'totalHoursWorked') {
+      const hours = active.map(sessionGrossHours).filter((h) => h > 0)
+      if (hours.length === 0) return undefined
+      return Math.round(hours.reduce((a, b) => a + b, 0) * 100) / 100
+    }
+    if (field === 'totalDeepWork' || field === 'totalHoursNet') {
+      const hours = active.map(sessionNetHours).filter((h) => h > 0)
+      if (hours.length === 0) return undefined
+      return Math.round(hours.reduce((a, b) => a + b, 0) * 100) / 100
+    }
+    const dwMatch = field.match(/^deepWork(\d)$/)
+    if (dwMatch) {
+      const idx = parseInt(dwMatch[1], 10) - 1
+      const s = active[idx]
+      if (!s) return undefined
+      const hours = sessionNetHours(s)
+      return hours > 0 ? hours : undefined
+    }
+  }
+
   if (field === 'totalDeepWork') return e.totalDeepWork ?? e.totalHoursWorked
   return e[field as keyof DailyEntry]
 }
@@ -178,6 +217,11 @@ export function getCellStyle(
   if (entry && isRestDay(entry) && REST_WORK_FIELD_SET.has(field)) {
     if (neutral) return neutralSurface(theme, 'mid')
     return { level: 'good', bg: restStripeBg(entry), text: '#ffffff' }
+  }
+
+  if (entry && isSchoolDay(entry) && SCHOOL_DISPLAY_FIELDS.has(field)) {
+    if (neutral) return neutralSurface(theme, 'mid')
+    return { level: 'good', bg: SCHOOL_STRIPE_BG, text: '#ffffff' }
   }
 
   if (field === 'wakeTime' || field === 'bedTime') {
@@ -267,6 +311,7 @@ export function formatFieldValue(field: string, value: unknown, entry?: DailyEnt
 
   if (value == null || value === '') {
     if (vacationZone) return ''
+    if (entry && isSchoolDay(entry) && SCHOOL_DISPLAY_FIELDS.has(field)) return ''
     return '·'
   }
 

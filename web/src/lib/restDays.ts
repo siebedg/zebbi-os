@@ -25,6 +25,7 @@ export function isKnownRestDate(date: string): boolean {
 }
 
 export function isRestDay(entry: Pick<DailyEntry, 'date' | 'dayType'>): boolean {
+  if (entry.dayType === 'school') return false
   return entry.dayType === 'rest' || isKnownRestDate(entry.date)
 }
 
