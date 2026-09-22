@@ -1,8 +1,8 @@
 import type { DailyEntry, DeepWorkSession } from '../types'
 import { clearWorkFields } from './restDays'
 
-/** Quiet muted orange — timetable fill only; distinct from rest blue */
-export const SCHOOL_STRIPE_BG = '#C49A6C'
+/** Soft orange — timetable fill only; distinct from rest blue */
+export const SCHOOL_STRIPE_BG = '#D9894B'
 
 export const MAX_SCHOOL_SESSIONS = 2
 
