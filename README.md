@@ -18,7 +18,7 @@ Open de URL uit de terminal (meestal `http://localhost:5173`).
 - **Maand** — volledig maandrooster (dec 2025+)
 - **Grafieken** — trends over tijd
 
-Schooldagen (oranje) gebruiken dezelfde dag-log, met ~2 lesblokken + één overall focus-score. Lesuren tellen niet mee in deep-work averages.
+Schooldagen gebruiken dezelfde dag-log, met ~2 lesblokken + één overall focus-score. Lesuren tellen niet mee in deep-work averages; de TT-kolom toont een stille oranje fill.
 
 ## Deep work plakken
 

@@ -10,13 +10,8 @@ import {
   SCHOOL_STRIPE_BG,
 } from './schoolDays'
 
-/** Month columns that surface school data (same labels as deep work). */
-export const SCHOOL_DISPLAY_FIELDS = new Set([
-  'avgFocus',
-  'deepWork1',
-  'deepWork2',
-  'totalDeepWork',
-])
+/** School days only fill the timetable cell (no orange on Foc%/DW). */
+export const SCHOOL_FILL_FIELDS = new Set(['timetable'])
 
 export type ScoreLevel = 'excellent' | 'good' | 'ok' | 'poor' | 'empty' | 'bool-yes' | 'bool-no'
 
@@ -219,7 +214,7 @@ export function getCellStyle(
     return { level: 'good', bg: restStripeBg(entry), text: '#ffffff' }
   }
 
-  if (entry && isSchoolDay(entry) && SCHOOL_DISPLAY_FIELDS.has(field)) {
+  if (entry && isSchoolDay(entry) && SCHOOL_FILL_FIELDS.has(field)) {
     if (neutral) return neutralSurface(theme, 'mid')
     return { level: 'good', bg: SCHOOL_STRIPE_BG, text: '#ffffff' }
   }
@@ -308,10 +303,10 @@ export function formatFieldValue(field: string, value: unknown, entry?: DailyEnt
   const vacationZone = onVacation ? getVacationZone(field) : null
 
   if (entry && isRestDay(entry) && REST_WORK_FIELD_SET.has(field)) return ''
+  if (entry && isSchoolDay(entry) && SCHOOL_FILL_FIELDS.has(field)) return ''
 
   if (value == null || value === '') {
     if (vacationZone) return ''
-    if (entry && isSchoolDay(entry) && SCHOOL_DISPLAY_FIELDS.has(field)) return ''
     return '·'
   }
 

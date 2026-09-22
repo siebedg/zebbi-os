@@ -520,11 +520,7 @@ export function DailyEntryForm({
               checked={restDay}
               onChange={setRestDayMode}
             />
-            <Toggle
-              label="Schooldag (lesblokken, geen deep work)"
-              checked={schoolDay}
-              onChange={setSchoolDayMode}
-            />
+            <Toggle label="School" checked={schoolDay} onChange={setSchoolDayMode} />
             {restDay && (
               <div className="space-y-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-overlay)] p-3">
                 <div className="flex gap-1.5">
@@ -570,16 +566,6 @@ export function DailyEntryForm({
                     }}
                   />
                 )}
-              </div>
-            )}
-            {schoolDay && (
-              <div className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-overlay)] px-3 py-2 text-xs text-[var(--color-muted)]">
-                <span
-                  className="h-2.5 w-2.5 shrink-0 rounded-full"
-                  style={{ background: SCHOOL_STRIPE_BG }}
-                  aria-hidden
-                />
-                Lesblokken tellen niet mee in deep-work averages
               </div>
             )}
             <Input
@@ -636,11 +622,6 @@ export function DailyEntryForm({
           </div>
         ) : schoolDay ? (
           <div className="space-y-3">
-            <div
-              className="h-1.5 rounded-full"
-              style={{ background: SCHOOL_STRIPE_BG }}
-              title="Schooldag"
-            />
             {schoolSessions.map((s, i) => {
               const collapsed = collapsedDw.has(s.id)
               const netH = sessionDurationHours(s)
@@ -940,24 +921,25 @@ export function DailyEntryForm({
       </Card>
 
       <Card className="p-4 sm:p-5">
-        {restDay || schoolDay ? (
+        {restDay ? (
           <div className="space-y-2">
             <p className="text-sm font-medium text-[var(--color-text)]">Timetable score %</p>
             <div
               className="h-3 rounded-full"
               style={{
-                background: restDay
-                  ? dayOffKind === 'other'
-                    ? REST_OTHER_STRIPE_BG
-                    : REST_STRIPE_BG
-                  : SCHOOL_STRIPE_BG,
+                background: dayOffKind === 'other' ? REST_OTHER_STRIPE_BG : REST_STRIPE_BG,
               }}
             />
-            <p className="text-xs text-[var(--color-muted)]">
-              {restDay
-                ? 'Niet van toepassing op rustdagen'
-                : 'Niet van toepassing op schooldagen'}
-            </p>
+            <p className="text-xs text-[var(--color-muted)]">Niet van toepassing op rustdagen</p>
+          </div>
+        ) : schoolDay ? (
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-[var(--color-text)]">Timetable</p>
+            <div
+              className="h-8 w-full"
+              style={{ background: SCHOOL_STRIPE_BG }}
+              title="School"
+            />
           </div>
         ) : (
           <Input

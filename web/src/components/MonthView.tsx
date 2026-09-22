@@ -20,6 +20,7 @@ import { enrichEntry } from '../lib/sessions'
 import { isValidDateStr } from '../lib/utils'
 import {
   DEEP_WORK_FIELDS,
+  SCHOOL_FILL_FIELDS,
   getRestStyle,
   formatFieldValue,
   getCellStyle,
@@ -34,7 +35,7 @@ import {
   restStripeBg,
   restStripeTitle,
 } from '../lib/restDays'
-import { isSchoolDay, SCHOOL_STRIPE_BG, schoolStripeTitle } from '../lib/schoolDays'
+import { isSchoolDay, schoolStripeTitle } from '../lib/schoolDays'
 import { monthColumnAverageValues, monthColumnAverages } from '../lib/monthlyStats'
 import { filterMonthColumns } from '../lib/fieldVisibility'
 import { useFieldVisibility } from '../hooks/useFieldVisibility'
@@ -174,11 +175,7 @@ export function MonthView({
               const isRest = isRestDay(entry)
               const isSchool = isSchoolDay(entry)
               const specialStyle =
-                isRest || entry.dayType === 'travel'
-                  ? getRestStyle(theme)
-                  : isSchool
-                    ? { level: 'good' as const, bg: SCHOOL_STRIPE_BG, text: '#ffffff' }
-                    : null
+                isRest || entry.dayType === 'travel' ? getRestStyle(theme) : null
 
               return (
                 <tr
@@ -240,7 +237,9 @@ export function MonthView({
                     const style = getCellStyle(col.key, val, entry, theme, indicatorMode)
                     const display = formatFieldValue(col.key, val, entry)
                     const zone = isVacation ? getVacationZone(col.key) : null
-                    const flushBand = zone || DEEP_WORK_FIELDS.has(col.key)
+                    const schoolTtFill = isSchool && SCHOOL_FILL_FIELDS.has(col.key)
+                    const flushBand =
+                      zone || DEEP_WORK_FIELDS.has(col.key) || schoolTtFill
                     return (
                       <td key={col.key} className={flushBand ? 'p-0' : 'p-px'}>
                         <div
@@ -252,7 +251,13 @@ export function MonthView({
                             color: style.text,
                             opacity: memorialCellOpacity,
                           }}
-                          title={display ? `${col.label}: ${display}` : col.label}
+                          title={
+                            schoolTtFill
+                              ? schoolStripeTitle(entry)
+                              : display
+                                ? `${col.label}: ${display}`
+                                : col.label
+                          }
                         >
                           {display}
                         </div>
