@@ -12,7 +12,7 @@ export interface DeepWorkSession {
   durationHours?: number
 }
 
-export type DayType = 'normal' | 'rest' | 'vacation' | 'travel'
+export type DayType = 'normal' | 'rest' | 'vacation' | 'travel' | 'school'
 
 /** Planned rest (blue) vs life day-off that wasn't the plan (e.g. verhuizen). */
 export type DayOffKind = 'planned' | 'other'
@@ -39,6 +39,14 @@ export interface DailyEntry {
   avgFocus?: number
   totalHoursWorked?: number
   totalHoursNet?: number
+  /**
+   * School-day lesson blocks (typically 2). Same time shape as deep work,
+   * but stored separately so they never enter deep-work averages.
+   * Per-block focus is ignored; use schoolFocus for the day.
+   */
+  schoolSessions?: DeepWorkSession[]
+  /** Overall subjective focus for a school day (not per lesson block). */
+  schoolFocus?: number
   timetable?: number
   notes?: string
   /** @deprecated legacy excel import */

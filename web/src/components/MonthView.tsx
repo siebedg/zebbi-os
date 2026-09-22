@@ -20,6 +20,7 @@ import { enrichEntry } from '../lib/sessions'
 import { isValidDateStr } from '../lib/utils'
 import {
   DEEP_WORK_FIELDS,
+  SCHOOL_FILL_FIELDS,
   getRestStyle,
   formatFieldValue,
   getCellStyle,
@@ -34,6 +35,7 @@ import {
   restStripeBg,
   restStripeTitle,
 } from '../lib/restDays'
+import { isSchoolDay, schoolStripeTitle } from '../lib/schoolDays'
 import { monthColumnAverageValues, monthColumnAverages } from '../lib/monthlyStats'
 import { filterMonthColumns } from '../lib/fieldVisibility'
 import { useFieldVisibility } from '../hooks/useFieldVisibility'
@@ -171,6 +173,7 @@ export function MonthView({
               const isToday = dateStr === format(new Date(), 'yyyy-MM-dd')
               const isVacation = isVacationDay(entry)
               const isRest = isRestDay(entry)
+              const isSchool = isSchoolDay(entry)
               const specialStyle =
                 isRest || entry.dayType === 'travel' ? getRestStyle(theme) : null
 
@@ -182,6 +185,7 @@ export function MonthView({
                   className={`border-b border-[var(--color-border)] ${
                     onSelectDate ? 'cursor-pointer hover:bg-[var(--color-surface-overlay)] active:bg-[var(--color-surface-overlay)]' : ''
                   } ${isToday ? 'bg-[var(--color-accent-soft)]' : ''}`}
+                  title={isSchool ? schoolStripeTitle(entry) : isRest ? restStripeTitle(entry) : undefined}
                 >
                   <td
                     className={`${stickyCell} left-0 border-r border-[var(--color-border)] text-center font-mono text-[var(--color-text)] ${isToday ? '!bg-[var(--color-accent-soft)]' : stickyBg}`}
@@ -233,7 +237,9 @@ export function MonthView({
                     const style = getCellStyle(col.key, val, entry, theme, indicatorMode)
                     const display = formatFieldValue(col.key, val, entry)
                     const zone = isVacation ? getVacationZone(col.key) : null
-                    const flushBand = zone || DEEP_WORK_FIELDS.has(col.key)
+                    const schoolTtFill = isSchool && SCHOOL_FILL_FIELDS.has(col.key)
+                    const flushBand =
+                      zone || DEEP_WORK_FIELDS.has(col.key) || schoolTtFill
                     return (
                       <td key={col.key} className={flushBand ? 'p-0' : 'p-px'}>
                         <div
@@ -245,7 +251,13 @@ export function MonthView({
                             color: style.text,
                             opacity: memorialCellOpacity,
                           }}
-                          title={display ? `${col.label}: ${display}` : col.label}
+                          title={
+                            schoolTtFill
+                              ? schoolStripeTitle(entry)
+                              : display
+                                ? `${col.label}: ${display}`
+                                : col.label
+                          }
                         >
                           {display}
                         </div>

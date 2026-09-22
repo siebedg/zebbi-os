@@ -2,7 +2,8 @@ import { ArrowRight } from 'lucide-react'
 import type { DailyEntry } from '../types'
 import { enrichEntry } from '../lib/sessions'
 import { formatDateNL, todayISO } from '../lib/utils'
-import { getCellStyle, formatFieldValue } from '../lib/colors'
+import { getCellStyle, formatFieldValue, getDisplayValue } from '../lib/colors'
+import { isSchoolDay } from '../lib/schoolDays'
 import { useTheme } from '../hooks/useTheme'
 import { Card, StatCard, Btn, PageHeader } from './ui'
 
@@ -28,9 +29,25 @@ export function Dashboard({
   const { theme, indicatorMode } = useTheme()
   const today = todayISO()
   const entry = todayEntry ? enrichEntry(todayEntry) : undefined
+  const school = entry ? isSchoolDay(entry) : false
+  const workedVal = entry
+    ? school
+      ? getDisplayValue(entry, 'totalHoursNet')
+      : entry.totalHoursNet
+    : undefined
+  const grossVal = entry
+    ? school
+      ? getDisplayValue(entry, 'totalHoursWorked')
+      : entry.totalHoursWorked
+    : undefined
+  const focusVal = entry
+    ? school
+      ? getDisplayValue(entry, 'avgFocus')
+      : entry.avgFocus
+    : undefined
 
   const completed = QUICK_FIELDS.filter((f) => {
-    const v = entry?.[f.key as keyof DailyEntry]
+    const v = entry ? getDisplayValue(entry, f.key) : undefined
     return v != null && v !== ''
   }).length
   const pct = Math.round((completed / QUICK_FIELDS.length) * 100)
@@ -66,16 +83,16 @@ export function Dashboard({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Dagen gelogd" value={String(filledCount)} />
         <StatCard
-          label="Net gewerkt"
-          value={entry?.totalHoursNet != null ? `${entry.totalHoursNet}u` : '—'}
+          label={school ? 'Net les' : 'Net gewerkt'}
+          value={workedVal != null ? `${workedVal}u` : '—'}
         />
         <StatCard
           label="Bruto"
-          value={entry?.totalHoursWorked != null ? `${entry.totalHoursWorked}u` : '—'}
+          value={grossVal != null ? `${grossVal}u` : '—'}
         />
         <StatCard
           label="Focus"
-          value={entry?.avgFocus != null ? `${entry.avgFocus}%` : '—'}
+          value={focusVal != null ? `${focusVal}%` : '—'}
         />
       </div>
 
@@ -83,7 +100,7 @@ export function Dashboard({
         <h2 className="mb-4 text-base font-semibold">Status vandaag</h2>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {QUICK_FIELDS.map(({ key, label }) => {
-            const val = entry?.[key as keyof DailyEntry]
+            const val = entry ? getDisplayValue(entry, key) : undefined
             const done = val != null && val !== ''
             const style = done ? getCellStyle(key, val, entry, theme, indicatorMode) : null
             return (
@@ -94,7 +111,7 @@ export function Dashboard({
               >
                 <span className="text-sm text-[var(--color-muted)]">{label}</span>
                 <span className="text-sm font-medium tabular-nums" style={{ color: style?.text ?? '#a1a1aa' }}>
-                  {done ? formatFieldValue(key, val) : '—'}
+                  {done ? formatFieldValue(key, val, entry) : '—'}
                 </span>
               </div>
             )

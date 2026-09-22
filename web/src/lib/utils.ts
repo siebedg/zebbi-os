@@ -164,10 +164,13 @@ export function entryHasData(entry: DailyEntry): boolean {
       entry.totalDeepWork != null ||
       legacyDw.some((v) => v != null && v > 0) ||
       (entry.sessions && entry.sessions.some((s) => s.startTime && s.endTime)) ||
+      (entry.schoolSessions && entry.schoolSessions.some((s) => s.startTime && s.endTime)) ||
+      entry.schoolFocus != null ||
       entry.timetable != null ||
       entry.notes ||
       entry.dayType === 'rest' ||
-      entry.dayType === 'vacation',
+      entry.dayType === 'vacation' ||
+      entry.dayType === 'school',
   )
 }
 

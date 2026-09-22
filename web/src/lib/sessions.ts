@@ -1,6 +1,7 @@
 import type { DailyEntry, DeepWorkSession } from '../types'
 import { SLEEP_SCORE_TRACKED_FROM, VACATION_DATES } from '../types'
 import { applyRestDay, isKnownRestDate, isRestDay } from './restDays'
+import { applySchoolDay, isSchoolDay } from './schoolDays'
 import { parseDistractionMinutes, uid } from './utils'
 
 function parseTimeToMinutes(time?: string): number | null {
@@ -90,7 +91,14 @@ export function enrichEntry(entry: DailyEntry): DailyEntry {
   if (!e.dayType && isKnownRestDate(e.date)) e.dayType = 'rest'
   if (e.date < SLEEP_SCORE_TRACKED_FROM) delete e.sleepScore
 
+  if (isSchoolDay(e)) return applySchoolDay(e)
   if (isRestDay(e)) return applyRestDay(e)
+
+  // Normal / vacation / travel — school fields must not linger
+  if (e.schoolSessions || e.schoolFocus != null) {
+    delete e.schoolSessions
+    delete e.schoolFocus
+  }
 
   const sessions = e.sessions ?? []
   if (sessions.length > 0) {
