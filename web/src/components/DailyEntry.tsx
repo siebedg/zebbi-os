@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { ChevronDown, FileText, Heart, Upload } from 'lucide-react'
 import type { DailyEntry, DayOffKind, DeepWorkSession } from '../types'
 import { MAX_SESSIONS } from '../types'
@@ -149,31 +149,9 @@ export function DailyEntryForm({
   /** Collapsed deep-work / school session ids */
   const [collapsedDw, setCollapsedDw] = useState<Set<string>>(() => new Set())
 
-  useEffect(() => {
-    setWakeTime(initial?.wakeTime ?? '')
-    setBedTime(initial?.bedTime ?? '')
-    setSleepScore(
-      initial?.sleepScore != null
-        ? initial.sleepScore <= 1
-          ? Math.round(initial.sleepScore * 100)
-          : initial.sleepScore
-        : '',
-    )
-    setMeditation(initial?.meditation ?? '')
-    setGratitude(initial?.gratitude)
-    setExercise(initial?.exercise)
-    setSessions(ensureSessions(initial))
-    setSchoolSessions(ensureSchoolSessions(initial))
-    setSchoolFocus(initial?.schoolFocus ?? '')
-    setTimetable(initial?.timetable ?? '')
-    setRestDay(initialRestDay(initial, initial?.date ?? date))
-    setSchoolDay(initialSchoolDay(initial))
-    setDayOffKind(initial ? getDayOffKind(initial) : 'planned')
-    setDayOffLabel(initial?.dayOffLabel ?? '')
-    setPasteText('')
-    setParseMsg(null)
-    setCollapsedDw(new Set())
-  }, [initial, date])
+  // Do not sync from `initial` on every parent re-render — EntryPage builds a new
+  // object each time (store sync / focus pull), which wiped in-progress edits and
+  // felt like the Vandaag panel closing. Date changes remount via `key` in App.
 
   const setRestDayMode = (on: boolean) => {
     setRestDay(on)

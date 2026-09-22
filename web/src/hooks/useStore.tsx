@@ -55,9 +55,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const applyRemote = useCallback((remote: AppState, remoteSavedAt?: string | null) => {
     setState((prev) => {
+      const remoteAt = remoteSavedAt ?? remote.stateUpdatedAt
+      // Pending local edits (incl. deletes) are newer — don't let a stale pull resurrect rows.
+      if (prev.stateUpdatedAt && remoteAt && prev.stateUpdatedAt > remoteAt) {
+        return prev
+      }
       const merged = mergeAppState(prev, {
         ...remote,
-        stateUpdatedAt: remoteSavedAt ?? remote.stateUpdatedAt,
+        stateUpdatedAt: remoteAt,
       })
       saveState(merged)
       return merged
@@ -68,8 +73,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (pushTimer.current) clearTimeout(pushTimer.current)
     setSyncStatus('syncing')
     pushTimer.current = setTimeout(async () => {
-      const stamped = withTimestamp(next)
-      const result = await pushRemoteState(stamped)
+      const result = await pushRemoteState(next)
       if (result.error === 'auth') {
         setSyncStatus('auth')
         setSyncError('Cloud sync geweigerd')
@@ -87,7 +91,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const commit = useCallback(
     (updater: (prev: AppState) => AppState) => {
       setState((prev) => {
-        const next = updater(prev)
+        const next = withTimestamp(updater(prev))
         saveState(next)
         schedulePush(next)
         return next
@@ -188,15 +192,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       )
 
       if (!cancelled) {
-        setState(merged)
-        saveState(merged)
+        const stamped = withTimestamp(merged)
+        setState(stamped)
+        saveState(stamped)
         initDone.current = true
         setReady(true)
 
         if (remoteBlocked) return
 
         setSyncStatus('syncing')
-        const result = await pushRemoteState(withTimestamp(merged))
+        const result = await pushRemoteState(stamped)
         if (!cancelled) {
           if (result.error === 'auth') {
             setSyncStatus('auth')
