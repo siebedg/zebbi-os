@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import { StoreProvider, useStore } from './hooks/useStore'
 import { Layout } from './components/Layout'
@@ -38,19 +38,23 @@ function EntryPage() {
   const wakeEntry = editDate ? getDailyByDate(editDate) : todayEntry
   /** Bed op vorige kalenderdag in maand; ingevuld op wake-dag (12 jun entry → 11 jun Sleep) */
   const bedTargetDate = prevDateISO(wakeDate)
-  const entryForEdit = wakeEntry
-    ? {
-        ...wakeEntry,
-        bedTime: bedTimeForForm(bedTargetDate, getDailyByDate),
-      }
-    : editDate
-      ? { date: editDate, bedTime: bedTimeForForm(bedTargetDate, getDailyByDate) }
-      : undefined
+  const bedTime = bedTimeForForm(bedTargetDate, getDailyByDate)
+  // Stable key: don't flip 'today' → ISO when an entry first appears (remount wiped in-progress edits).
+  const formKey = editDate ?? wakeDate
+  const entryForEdit = useMemo(() => {
+    if (wakeEntry) {
+      return { ...wakeEntry, bedTime }
+    }
+    if (editDate) {
+      return { date: editDate, bedTime }
+    }
+    return undefined
+  }, [wakeEntry, bedTime, editDate])
 
   return (
     <>
       <DailyEntryForm
-        key={entryForEdit?.date ?? editDate ?? 'today'}
+        key={formKey}
         initial={entryForEdit}
         bedTargetDate={bedTargetDate}
         onSave={(e) => {

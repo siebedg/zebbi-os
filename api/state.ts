@@ -18,73 +18,18 @@ function authorized(req: VercelRequest): boolean {
   return isAuthorizedRequest(req)
 }
 
-function entryStamp(e: { updatedAt?: string; date?: string }): string {
-  return e.updatedAt ?? (e.date ? `${e.date}T00:00:00.000Z` : '1970-01-01T00:00:00.000Z')
-}
-
-function mergeDailyLog(a: Record<string, unknown>[], b: Record<string, unknown>[]): Record<string, unknown>[] {
-  const map = new Map<string, Record<string, unknown>>()
-  const add = (e: Record<string, unknown>) => {
-    const date = String(e.date ?? '')
-    if (!date) return
-    const prev = map.get(date)
-    if (!prev || entryStamp(e as { updatedAt?: string; date?: string }) >= entryStamp(prev as { updatedAt?: string; date?: string })) {
-      map.set(date, e)
-    }
-  }
-  for (const e of a) add(e)
-  for (const e of b) add(e)
-  return [...map.values()].sort((x, y) => String(x.date).localeCompare(String(y.date)))
-}
-
-function mergeById(
-  a: Record<string, unknown>[],
-  b: Record<string, unknown>[],
-  idKey: string,
-): Record<string, unknown>[] {
-  const map = new Map<string, Record<string, unknown>>()
-  const add = (e: Record<string, unknown>) => {
-    const id = String(e[idKey] ?? '')
-    if (!id) return
-    const prev = map.get(id)
-    if (!prev || entryStamp(e as { updatedAt?: string; date?: string }) >= entryStamp(prev as { updatedAt?: string; date?: string })) {
-      map.set(id, e)
-    }
-  }
-  for (const e of a) add(e)
-  for (const e of b) add(e)
-  return [...map.values()]
-}
-
-function mergeStored(existing: StoredState | null, incoming: StoredState): StoredState {
-  if (!existing) return { ...incoming, savedAt: new Date().toISOString() }
-  const dailyLog = mergeDailyLog(
-    (existing.dailyLog ?? []) as Record<string, unknown>[],
-    (incoming.dailyLog ?? []) as Record<string, unknown>[],
-  )
-  const readingBooks = mergeById(
-    (existing.readingBooks ?? []) as Record<string, unknown>[],
-    (incoming.readingBooks ?? []) as Record<string, unknown>[],
-    'id',
-  )
-  const weightLog = mergeById(
-    (existing.weightLog ?? []) as Record<string, unknown>[],
-    (incoming.weightLog ?? []) as Record<string, unknown>[],
-    'date',
-  )
-  const shutdownTemplates = mergeById(
-    (existing.shutdownTemplates ?? []) as Record<string, unknown>[],
-    (incoming.shutdownTemplates ?? []) as Record<string, unknown>[],
-    'id',
-  )
+/**
+ * Client PUT sends a full snapshot. Replace collections instead of union-merging
+ * so deleted days/rows actually disappear (merge-by-date resurrected them).
+ */
+function replaceStored(_existing: StoredState | null, incoming: StoredState): StoredState {
   return {
-    dailyLog,
-    readingBooks,
-    weightLog,
-    shutdownTemplates,
-    activeShutdownTemplateId:
-      incoming.activeShutdownTemplateId ?? existing.activeShutdownTemplateId,
-    oscillationProtocol: incoming.oscillationProtocol ?? existing.oscillationProtocol,
+    dailyLog: incoming.dailyLog ?? [],
+    readingBooks: incoming.readingBooks ?? [],
+    weightLog: incoming.weightLog ?? [],
+    shutdownTemplates: incoming.shutdownTemplates ?? [],
+    activeShutdownTemplateId: incoming.activeShutdownTemplateId,
+    oscillationProtocol: incoming.oscillationProtocol,
     savedAt: new Date().toISOString(),
   }
 }
@@ -180,7 +125,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Invalid body' })
       }
       const { state: existing } = await readState()
-      const merged = mergeStored(existing, {
+      const next = replaceStored(existing, {
         dailyLog: body.dailyLog,
         readingBooks: Array.isArray(body.readingBooks) ? body.readingBooks : [],
         weightLog: Array.isArray(body.weightLog) ? body.weightLog : [],
@@ -189,13 +134,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           typeof body.activeShutdownTemplateId === 'string' ? body.activeShutdownTemplateId : undefined,
         oscillationProtocol: body.oscillationProtocol,
       })
-      const { ok, storage } = await writeState(merged)
+      const { ok, storage } = await writeState(next)
       if (!ok) {
         return res.status(503).json({
           error: 'Storage not configured — link Redis or Blob in Vercel → Storage',
         })
       }
-      return res.status(200).json({ ok: true, savedAt: merged.savedAt, storage })
+      return res.status(200).json({ ok: true, savedAt: next.savedAt, storage })
     } catch (err) {
       console.error('PUT /api/state', err)
       return res.status(500).json({ error: 'Save failed' })
