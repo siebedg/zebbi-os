@@ -48,10 +48,17 @@ function ShutdownItemLabel({ text }: { text: string }) {
 
   if (lower.includes('yoga')) {
     return (
-      <span className="inline-flex flex-wrap items-center gap-1.5">
-        Take yoga mat
-        <ArrowRight className="h-4 w-4 shrink-0 text-[var(--color-muted)]" strokeWidth={2.25} />
-        now do some yoga with Bend 😊
+      <span className="flex flex-col gap-2">
+        <span className="inline-flex flex-wrap items-center gap-1.5">
+          Take yoga mat
+          <ArrowRight className="h-4 w-4 shrink-0 text-[var(--color-muted)]" strokeWidth={2.25} />
+          now do some yoga with Bend 😊
+        </span>
+        <img
+          src="/yoga-foam-roll.gif"
+          alt="Yoga foam roll with Bend"
+          className="mt-0.5 w-full max-w-xs rounded-xl border border-[var(--color-border)]"
+        />
       </span>
     )
   }
