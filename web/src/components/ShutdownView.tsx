@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
-import { ArrowRight, Check, Play, SquareTerminal } from 'lucide-react'
+import { ArrowRight, Check, Play } from 'lucide-react'
 import type { ShutdownTemplate } from '../types'
 import { formatMmSs, SHUTDOWN_QR_PAYLOAD } from '../lib/shutdown'
 import {
@@ -8,7 +8,6 @@ import {
   saveShutdownSession,
   sessionSecondsLeft,
 } from '../lib/shutdownSession'
-import { launchKillHelper } from '../lib/shutdownKill'
 import { Btn, Card, PageHeader } from './ui'
 import { HabitContractsImage } from './HabitContractsImage'
 
@@ -69,7 +68,7 @@ function ShutdownItemLabel({ text }: { text: string }) {
         <span className="italic underline decoration-2 underline-offset-2 text-[var(--color-bad)]">
           Intention
         </span>
-        {' + Timetable / Google Calendar'}
+{' + Google Calendar'}
       </>
     )
   }
@@ -252,32 +251,6 @@ export function ShutdownView({
         </p>
       </div>
 
-      <Card className="p-5">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
-          Kill noise
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Btn
-            onClick={() => {
-              saveShutdownSession({
-                startedAt,
-                timerMinutes,
-                templateId: template.id,
-                killDone,
-                checked: [...checked],
-              })
-              launchKillHelper()
-            }}
-          >
-            <SquareTerminal className="h-4 w-4" />
-            Kill distractions
-          </Btn>
-          <Btn variant={killDone ? 'primary' : 'ghost'} onClick={() => setKillDone((v) => !v)}>
-            {killDone ? 'Kill done' : 'Mark kill done'}
-          </Btn>
-        </div>
-      </Card>
-
       {(template.imageDataUrl || template.imageName) && (
         <div className="space-y-3">
           <p className="text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
@@ -287,7 +260,7 @@ export function ShutdownView({
         </div>
       )}
 
-      {killDone && (
+      {(
         <Card className="p-5 text-center">
           {qrDataUrl ? (
             <>

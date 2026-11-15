@@ -233,7 +233,7 @@ export function HabitChoice({
                   ? o.pick === true
                     ? 'border-[var(--color-good)] bg-[var(--color-good)]/15 text-[var(--color-good)]'
                     : o.pick === false
-                      ? 'border-[var(--color-bad)] bg-[var(--color-bad)]/15 text-[var(--color-bad)]'
+                      ? 'border-[var(--color-muted)]/40 bg-[var(--color-surface-overlay)] text-[var(--color-muted)]'
                       : 'border-[var(--color-border)] bg-[var(--color-surface-overlay)] text-[var(--color-muted)]'
                   : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-muted)] hover:bg-[var(--color-surface-overlay)]'
               }`}

@@ -135,7 +135,7 @@ function scoreLevels(theme: Theme): Record<ScoreLevel, CellStyle> {
       poor: { level: 'poor', bg: '#7f1d1d88', text: '#fca5a5' },
       empty: { level: 'empty', bg: '#27272a', text: '#71717a' },
       'bool-yes': { level: 'bool-yes', bg: '#14532d88', text: '#86efac' },
-      'bool-no': { level: 'bool-no', bg: '#7f1d1d88', text: '#fca5a5' },
+      'bool-no': { level: 'bool-no', bg: '#3f3f46', text: '#a1a1aa' },
     }
   }
   return {
@@ -145,7 +145,7 @@ function scoreLevels(theme: Theme): Record<ScoreLevel, CellStyle> {
     poor: { level: 'poor', bg: '#fee2e2', text: '#b91c1c' },
     empty: { level: 'empty', bg: '#f4f4f5', text: '#a1a1aa' },
     'bool-yes': { level: 'bool-yes', bg: '#dcfce7', text: '#15803d' },
-    'bool-no': { level: 'bool-no', bg: '#fee2e2', text: '#b91c1c' },
+    'bool-no': { level: 'bool-no', bg: '#e4e4e7', text: '#71717a' },
   }
 }
 

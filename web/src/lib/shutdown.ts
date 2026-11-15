@@ -14,7 +14,6 @@ export function createDefaultShutdownTemplates(): ShutdownTemplate[] {
       introMessage: 'Als je alle stappen doorneemt voel je je altijd fulfilled en oprecht euphoric.\nLiefs, Siebe.',
       encouragement: 'Start rustig. Kill noise first, then close the day well.',
       timerMinutes: 15,
-      killCommand: 'powershell -ExecutionPolicy Bypass -File ".\\tools\\zebbi-shutdown-kill.ps1"',
       sections: [
         section('Social close-out', ['Reply to all people in Instagram & Messenger']),
         section('Before anything else', [
@@ -23,8 +22,8 @@ export function createDefaultShutdownTemplates(): ShutdownTemplate[] {
           'Output Zebbi',
         ]),
         section('Intention + remove friction', [
-          'Intention + Timetable / Google Calendar',
-          'Remove friction (War Map, To-do, V1.1, timer, work)',
+          'Intention + Google Calendar',
+          'Remove friction (War Map, To-do, V2 ✉️, timer, work)',
           'Turn computer in greyscale',
         ]),
         section('Body', [
@@ -39,7 +38,6 @@ export function createDefaultShutdownTemplates(): ShutdownTemplate[] {
       introMessage: 'Korte versie voor avonden waarop je wel wilt afsluiten maar niet uitrollen.',
       encouragement: 'Short, clean, no excuses.',
       timerMinutes: 7,
-      killCommand: 'powershell -ExecutionPolicy Bypass -File ".\\tools\\zebbi-shutdown-kill.ps1"',
       sections: [
         section('Must do', [
           'Reply to urgent messages',
@@ -53,6 +51,23 @@ export function createDefaultShutdownTemplates(): ShutdownTemplate[] {
   ]
 }
 
+/** Rewrites older wording in saved routines to the current text. */
+export function migrateShutdownItem(raw: string): string {
+  const item = raw.trim()
+  if (/^remove friction/i.test(item)) {
+    return item
+      .replace(/\bwarm[\s-]?up\s*/gi, '')
+      .replace(/\bV1\.1\b(\s*✉️)?/g, 'V2 ✉️')
+      .replace(/\s+,/g, ',')
+      .replace(/,(\s*,)+/g, ',')
+      .replace(/\(\s+/g, '(')
+  }
+  if (/^intention\b/i.test(item) && /timetable/i.test(item)) {
+    return 'Intention + Google Calendar'
+  }
+  return item
+}
+
 export function normalizeShutdownTemplate(
   value: Partial<ShutdownTemplate>,
   fallback?: ShutdownTemplate,
@@ -63,7 +78,7 @@ export function normalizeShutdownTemplate(
       ?.map((sectionValue, idx) => ({
         id: sectionValue.id || `${base.id}-section-${idx + 1}`,
         title: sectionValue.title?.trim() || `Section ${idx + 1}`,
-            items: (sectionValue.items ?? []).map((item) => item.trim()).filter(Boolean),
+        items: (sectionValue.items ?? []).map(migrateShutdownItem).filter(Boolean),
       }))
       .filter((sectionValue) => sectionValue.items.length > 0) ?? base.sections
 
@@ -78,7 +93,6 @@ export function normalizeShutdownTemplate(
         : base.timerMinutes,
     imageDataUrl: value.imageDataUrl || base.imageDataUrl,
     imageName: value.imageName || base.imageName,
-    killCommand: value.killCommand?.trim() || base.killCommand,
     sections,
     updatedAt: value.updatedAt || base.updatedAt || new Date().toISOString(),
   }

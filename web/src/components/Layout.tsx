@@ -6,7 +6,6 @@ import {
   LineChart,
   PenLine,
   Repeat,
-  Scale,
   Settings,
 } from 'lucide-react'
 import { ShutdownTimerDock } from './ShutdownTimerDock'
@@ -19,14 +18,12 @@ const MAIN_TABS = [
   { path: '/review', label: '30d', icon: Repeat },
 ] as const
 
-const SECONDARY_TABS = [{ path: '/gewicht', label: 'Gewicht', icon: Scale }] as const
-
 const FOOTER_TABS = [
   { path: '/shutdown', label: 'Shutdown', icon: ClipboardCheck },
   { path: '/settings', label: 'Settings', icon: Settings },
 ] as const
 
-type TabDef = (typeof MAIN_TABS)[number] | (typeof SECONDARY_TABS)[number] | (typeof FOOTER_TABS)[number]
+type TabDef = (typeof MAIN_TABS)[number] | (typeof FOOTER_TABS)[number]
 
 function NavItem({ tab }: { tab: TabDef }) {
   const Icon = tab.icon
@@ -64,12 +61,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-2">
           {MAIN_TABS.map((tab) => (
-            <NavItem key={tab.path} tab={tab} />
-          ))}
-
-          <div className="my-3 mx-2 border-t border-[var(--color-sidebar-border)]" />
-
-          {SECONDARY_TABS.map((tab) => (
             <NavItem key={tab.path} tab={tab} />
           ))}
 
@@ -114,7 +105,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
           <div className="mx-1 w-px shrink-0 self-stretch bg-[var(--color-border)]" />
           <div className="flex gap-1">
-            {[...SECONDARY_TABS, ...FOOTER_TABS].map((tab) => {
+            {FOOTER_TABS.map((tab) => {
               const Icon = tab.icon
               return (
                 <NavLink

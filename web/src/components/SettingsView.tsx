@@ -1,8 +1,8 @@
-import { Moon, SquareTerminal, Sun } from 'lucide-react'
+import { ChevronRight, Moon, Scale, Sun } from 'lucide-react'
 import type { DailyEntry, ShutdownTemplate, WeightEntry } from '../types'
 import { useTheme } from '../hooks/useTheme'
 import { PALETTE_OPTIONS, type PaletteId } from '../lib/theme'
-import { KILL_INSTALLER_PATH } from '../lib/shutdownKill'
+import { Link } from 'react-router-dom'
 import { ExportPanel } from './ExportPanel'
 import { HabitContractsImage, saveHabitContractImage } from './HabitContractsImage'
 import { ShutdownRoutineEditor } from './ShutdownRoutineEditor'
@@ -123,20 +123,8 @@ export function SettingsView({
         <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]">
           Shutdown
         </p>
-        <a
-          href={KILL_INSTALLER_PATH}
-          download="Zebbi-install-kill.bat"
-          className="inline-flex items-center gap-2 text-sm text-[var(--color-text)] underline-offset-2 hover:underline"
-        >
-          <SquareTerminal className="h-4 w-4" />
-          Installeer one-click kill
-        </a>
-        <p className="mt-2 text-xs leading-relaxed text-[var(--color-muted)]">
-          Eerste keer op deze PC: download en run. Daarna sluit de shutdown-knop Discord, Slack, Chrome, Cursor, enz.
-        </p>
-
         {shutdownTemplates.length > 0 && (
-          <div className="mt-6">
+          <div>
             <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
               Routine
             </p>
@@ -162,6 +150,22 @@ export function SettingsView({
             />
           </div>
         )}
+      </section>
+
+      <section className="mb-10">
+        <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]">
+          Gewicht
+        </p>
+        <Link
+          to="/gewicht"
+          className="flex items-center justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-3 text-sm font-medium text-[var(--color-text)] transition hover:bg-[var(--color-surface-overlay)]"
+        >
+          <span className="inline-flex items-center gap-2">
+            <Scale className="h-4 w-4 text-[var(--color-muted)]" />
+            Gewicht en doel bekijken
+          </span>
+          <ChevronRight className="h-4 w-4 text-[var(--color-muted)]" />
+        </Link>
       </section>
 
       <section>
