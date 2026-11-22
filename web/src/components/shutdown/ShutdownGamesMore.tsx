@@ -310,10 +310,15 @@ export function ScratchMode({ steps, index, accent, onComplete }: GameProps) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const drawing = useRef(false)
   const moves = useRef(0)
+  /** Last scratch point, so fast swipes draw a continuous stroke. */
+  const last = useRef<{ x: number; y: number } | null>(null)
   const [revealed, setRevealed] = useState(false)
+  /** Which step the cover is drawn for; the step stays hidden until then. */
+  const [coveredIndex, setCoveredIndex] = useState(-1)
 
   useLayoutEffect(() => {
     setRevealed(false)
+    moves.current = 0
     const c = canvas.current
     const b = box.current
     if (!c || !b) return
@@ -336,6 +341,7 @@ export function ScratchMode({ steps, index, accent, onComplete }: GameProps) {
     ctx.font = '600 15px system-ui, sans-serif'
     ctx.textAlign = 'center'
     ctx.fillText('Kras om je volgende stap te zien', width / 2, height / 2 + 5)
+    setCoveredIndex(index)
   }, [index, accent])
 
   const scratch = (clientX: number, clientY: number) => {
@@ -345,9 +351,22 @@ export function ScratchMode({ steps, index, accent, onComplete }: GameProps) {
     const r = c.getBoundingClientRect()
     ctx.globalCompositeOperation = 'destination-out'
     ctx.fillStyle = '#000'
+    ctx.strokeStyle = '#000'
+    ctx.lineWidth = 52
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    const x = clientX - r.left
+    const y = clientY - r.top
     ctx.beginPath()
-    ctx.arc(clientX - r.left, clientY - r.top, 26, 0, Math.PI * 2)
-    ctx.fill()
+    if (last.current) {
+      ctx.moveTo(last.current.x, last.current.y)
+      ctx.lineTo(x, y)
+      ctx.stroke()
+    } else {
+      ctx.arc(x, y, 26, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    last.current = { x, y }
     moves.current += 1
     if (moves.current % 8 === 0) {
       const data = ctx.getImageData(0, 0, c.width, c.height).data
@@ -371,28 +390,47 @@ export function ScratchMode({ steps, index, accent, onComplete }: GameProps) {
       </p>
       <div
         ref={box}
-        className="relative mt-4 flex h-60 w-full max-w-md items-center justify-center overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] px-8 shadow-[var(--shadow-card)]"
+        className="relative mt-4 flex h-60 w-full max-w-md select-none items-center justify-center overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] px-8 shadow-[var(--shadow-card)]"
       >
-        <div className="text-xl font-medium leading-snug text-[var(--color-text)] sm:text-2xl">
+        <div
+          className="text-xl font-medium leading-snug text-[var(--color-text)] sm:text-2xl"
+          style={{ visibility: coveredIndex === index ? 'visible' : 'hidden' }}
+        >
           <p className="mb-2 text-xs font-medium text-[var(--color-muted)]">{steps[index].section}</p>
           <ShutdownItemLabel text={steps[index].text} showMedia={false} />
         </div>
         <canvas
           ref={canvas}
-          className="absolute inset-0 h-full w-full touch-none"
-          style={{ opacity: revealed ? 0 : 1, transition: 'opacity 0.5s', pointerEvents: revealed ? 'none' : 'auto' }}
+          className="absolute inset-0 h-full w-full cursor-crosshair touch-none select-none"
+          draggable={false}
+          onDragStart={(e) => e.preventDefault()}
+          onContextMenu={(e) => e.preventDefault()}
+          style={{
+            opacity: revealed ? 0 : 1,
+            // fade out when revealed, but snap straight back for the next step
+            transition: revealed ? 'opacity 0.5s' : 'none',
+            pointerEvents: revealed ? 'none' : 'auto',
+          }}
           onPointerDown={(e) => {
+            e.preventDefault()
             try {
               e.currentTarget.setPointerCapture(e.pointerId)
             } catch {
               /* synthetic or already-released pointer */
             }
             drawing.current = true
+            last.current = null
             scratch(e.clientX, e.clientY)
           }}
           onPointerMove={(e) => drawing.current && scratch(e.clientX, e.clientY)}
-          onPointerUp={() => (drawing.current = false)}
-          onPointerCancel={() => (drawing.current = false)}
+          onPointerUp={() => {
+            drawing.current = false
+            last.current = null
+          }}
+          onPointerCancel={() => {
+            drawing.current = false
+            last.current = null
+          }}
         />
       </div>
       <button

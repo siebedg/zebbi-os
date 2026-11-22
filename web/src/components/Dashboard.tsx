@@ -3,7 +3,7 @@ import type { DailyEntry } from '../types'
 import { enrichEntry } from '../lib/sessions'
 import { formatDateNL, todayISO } from '../lib/utils'
 import { getCellStyle, formatFieldValue, getDisplayValue } from '../lib/colors'
-import { isSchoolDay } from '../lib/schoolDays'
+import { hasDeepWork, isSchoolDay } from '../lib/schoolDays'
 import { useTheme } from '../hooks/useTheme'
 import { Card, StatCard, Btn, PageHeader } from './ui'
 
@@ -29,7 +29,8 @@ export function Dashboard({
   const { theme, indicatorMode } = useTheme()
   const today = todayISO()
   const entry = todayEntry ? enrichEntry(todayEntry) : undefined
-  const school = entry ? isSchoolDay(entry) : false
+  /** Show lesson hours only when the school day has no deep work of its own. */
+  const school = entry ? isSchoolDay(entry) && !hasDeepWork(entry) : false
   const workedVal = entry
     ? school
       ? getDisplayValue(entry, 'totalHoursNet')

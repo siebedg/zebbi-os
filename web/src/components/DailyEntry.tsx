@@ -175,7 +175,6 @@ export function DailyEntryForm({
       setRestDay(false)
       setDayOffKind('planned')
       setDayOffLabel('')
-      setSessions([emptySession()])
       setTimetable('')
       setSchoolSessions((list) =>
         list.length >= 2 ? list : [emptySchoolSession(), emptySchoolSession()],
@@ -301,7 +300,6 @@ export function DailyEntryForm({
       }
       if (parsed.timetable != null) setTimetable(parsed.timetable)
       if (parsed.sessions.length > 0) {
-        setSchoolDay(false)
         setSessions(parsed.sessions.slice(0, MAX_SESSIONS).map((s) => ({ ...s, id: uid() })))
         setParseMsg(`${parsed.sessions.length} deep work sessie(s) herkend`)
         setShowPaste(false)
@@ -347,6 +345,7 @@ export function DailyEntryForm({
       return enrichEntry(
         applySchoolDay({
           ...entry,
+          sessions: sessions.filter((s) => s.startTime && s.endTime),
           schoolSessions: schoolSessions.filter((s) => s.startTime && s.endTime),
           schoolFocus: schoolFocus !== '' ? Number(schoolFocus) : undefined,
         }),
@@ -561,44 +560,23 @@ export function DailyEntryForm({
         </Card>
       </div>
 
-      <Card className={`p-4 sm:p-5 ${restDay || schoolDay ? 'opacity-90' : ''}`}>
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-medium text-[var(--color-text)]">
-            {schoolDay ? 'Lesblokken' : 'Deep work sessions'}
-          </h3>
-          {!restDay && !schoolDay && sessions.length < MAX_SESSIONS && (
-            <button
-              type="button"
-              onClick={addSession}
-              className="text-xs text-[var(--color-accent)] hover:underline"
-            >
-              + sessie
-            </button>
-          )}
-          {schoolDay && schoolSessions.length < MAX_SCHOOL_SESSIONS && (
-            <button
-              type="button"
-              onClick={addSchoolSession}
-              className="text-xs text-[var(--color-accent)] hover:underline"
-            >
-              + lesblok
-            </button>
-          )}
-        </div>
-
-        {restDay ? (
-          <div className="space-y-2">
-            <div
-              className="h-3 rounded-full"
-              style={{ background: dayOffKind === 'other' ? REST_OTHER_STRIPE_BG : REST_STRIPE_BG }}
-            />
-            <p className="text-sm text-[var(--color-muted)]">
-              {dayOffKind === 'other'
-                ? `Day off${dayOffLabel.trim() ? ` — ${dayOffLabel.trim()}` : ''} · geen deep work / timetable.`
-                : 'Rustdag — deep work en timetable zijn uitgeschakeld.'}
-            </p>
+      {schoolDay && (
+        <Card className="p-4 sm:p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-sm font-medium text-[var(--color-text)]">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: SCHOOL_STRIPE_BG }} aria-hidden />
+              Lesblokken
+            </h3>
+            {schoolSessions.length < MAX_SCHOOL_SESSIONS && (
+              <button
+                type="button"
+                onClick={addSchoolSession}
+                className="text-xs text-[var(--color-accent)] hover:underline"
+              >
+                + lesblok
+              </button>
+            )}
           </div>
-        ) : schoolDay ? (
           <div className="space-y-3">
             {schoolSessions.map((s, i) => {
               const collapsed = collapsedDw.has(s.id)
@@ -637,7 +615,7 @@ export function DailyEntryForm({
                         }`}
                       />
                       <span className="text-sm font-medium text-[var(--color-text)]">
-                        Deep work {i + 1}
+                        Lesblok {i + 1}
                       </span>
                       {collapsed && rangeLabel && (
                         <span className="truncate text-xs text-[var(--color-muted)]">
@@ -744,6 +722,37 @@ export function DailyEntryForm({
                 />
               </div>
             </div>
+          </div>
+        </Card>
+      )}
+
+      <Card className={`p-4 sm:p-5 ${restDay ? 'opacity-90' : ''}`}>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-medium text-[var(--color-text)]">
+            {schoolDay ? 'Deep work (naast school)' : 'Deep work sessions'}
+          </h3>
+          {!restDay && sessions.length < MAX_SESSIONS && (
+            <button
+              type="button"
+              onClick={addSession}
+              className="text-xs text-[var(--color-accent)] hover:underline"
+            >
+              + sessie
+            </button>
+          )}
+        </div>
+
+        {restDay ? (
+          <div className="space-y-2">
+            <div
+              className="h-3 rounded-full"
+              style={{ background: dayOffKind === 'other' ? REST_OTHER_STRIPE_BG : REST_STRIPE_BG }}
+            />
+            <p className="text-sm text-[var(--color-muted)]">
+              {dayOffKind === 'other'
+                ? `Day off${dayOffLabel.trim() ? ` — ${dayOffLabel.trim()}` : ''} · geen deep work / timetable.`
+                : 'Rustdag — deep work en timetable zijn uitgeschakeld.'}
+            </p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -873,7 +882,7 @@ export function DailyEntryForm({
           </div>
         )}
 
-        {!restDay && !schoolDay && (
+        {!restDay && (
           <div className="mt-4 grid gap-4 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-overlay)] p-4 text-sm sm:grid-cols-3">
             <div>
               <span className="text-[var(--color-muted)]">Net gewerkt</span>

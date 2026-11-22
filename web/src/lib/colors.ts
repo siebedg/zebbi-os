@@ -6,6 +6,7 @@ import type { IndicatorMode, Theme } from './theme'
 import { isRestDay, REST_WORK_FIELD_SET, restStripeBg } from './restDays'
 import {
   activeSchoolSessions,
+  hasDeepWork,
   isSchoolDay,
   SCHOOL_STRIPE_BG,
 } from './schoolDays'
@@ -163,9 +164,9 @@ export function getDisplayValue(entry: DailyEntry, field: string): unknown {
   const e = enrichEntry(entry)
   if (field === 'sleepScore' && e.date < SLEEP_SCORE_TRACKED_FROM) return undefined
 
-  // School days: surface lesson hours / overall focus in the same month columns
-  // without writing deep-work fields on the entry itself.
-  if (isSchoolDay(e)) {
+  // School days without deep work: surface lesson hours / overall focus in the
+  // same month columns. With deep work (e.g. before school) the columns show that.
+  if (isSchoolDay(e) && !hasDeepWork(e)) {
     if (field === 'avgFocus') return e.schoolFocus
     const active = activeSchoolSessions(e)
     if (field === 'totalHoursWorked') {

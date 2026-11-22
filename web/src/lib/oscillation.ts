@@ -9,7 +9,7 @@ import { nl } from 'date-fns/locale'
 import type { DailyEntry } from '../types'
 import { enrichEntry, sessionDurationMinutes } from './sessions'
 import { isRestDay } from './restDays'
-import { isSchoolDay } from './schoolDays'
+import { hasDeepWork, isSchoolDay } from './schoolDays'
 import { isValidDateStr } from './utils'
 
 export type OscillationUnit = 'min' | 'uur' | '%' | 'pag'
@@ -101,9 +101,11 @@ function getDeepWorkMinutes(e: DailyEntry, index0: number): number | null {
 }
 
 function getMetricValue(e: DailyEntry, metricId: string): number | null {
-  if (isSchoolDay(e) && metricId.startsWith('deepWork')) return null
-  if (isSchoolDay(e) && (metricId === 'totalWorked' || metricId === 'avgFocus' || metricId === 'timetable')) {
-    return null
+  if (isSchoolDay(e)) {
+    if (metricId === 'timetable') return null
+    const workMetric =
+      metricId.startsWith('deepWork') || metricId === 'totalWorked' || metricId === 'avgFocus'
+    if (workMetric && !hasDeepWork(e)) return null
   }
   if (isRestDay(e) && metricId.startsWith('deepWork')) return null
   if (isRestDay(e) && (metricId === 'totalWorked' || metricId === 'avgFocus' || metricId === 'timetable')) {

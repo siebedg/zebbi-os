@@ -91,11 +91,12 @@ export function enrichEntry(entry: DailyEntry): DailyEntry {
   if (!e.dayType && isKnownRestDate(e.date)) e.dayType = 'rest'
   if (e.date < SLEEP_SCORE_TRACKED_FROM) delete e.sleepScore
 
-  if (isSchoolDay(e)) return applySchoolDay(e)
-  if (isRestDay(e)) return applyRestDay(e)
-
-  // Normal / vacation / travel — school fields must not linger
-  if (e.schoolSessions || e.schoolFocus != null) {
+  if (isSchoolDay(e)) {
+    e = applySchoolDay(e)
+  } else if (isRestDay(e)) {
+    return applyRestDay(e)
+  } else if (e.schoolSessions || e.schoolFocus != null) {
+    // Normal / vacation / travel — school fields must not linger
     delete e.schoolSessions
     delete e.schoolFocus
   }

@@ -8,7 +8,7 @@ import {
   monthEntries,
 } from './oscillation'
 import { enrichEntry } from './sessions'
-import { isSchoolDay } from './schoolDays'
+import { countsAsWorkDay } from './schoolDays'
 import { isValidDateStr } from './utils'
 
 export type ExportScope = 'month' | 'all' | 'oscillation-month' | 'oscillation-all'
@@ -56,7 +56,7 @@ function monthKeysFrom(entries: DailyEntry[]): string[] {
 
 export function buildMonthExport(entries: DailyEntry[], monthKey: string): ZebbiExportBundle {
   const inMonth = enriched(monthEntries(entries, monthKey))
-  const workDays = inMonth.filter((e) => !isSchoolDay(e))
+  const workDays = inMonth.filter(countsAsWorkDay)
   const netHours = workDays.reduce((sum, e) => sum + (e.totalHoursNet ?? e.totalDeepWork ?? 0), 0)
   const focusVals = workDays.map((e) => e.avgFocus).filter((v): v is number => v != null)
   const avgFocus =
@@ -113,7 +113,7 @@ export function buildAllMonthsExport(entries: DailyEntry[], weightLog?: AppState
       dateRange:
         log.length > 0 ? { from: log[0].date, to: log[log.length - 1].date } : undefined,
       totalNetHours: Math.round(
-        log.filter((e) => !isSchoolDay(e)).reduce((sum, e) => sum + (e.totalHoursNet ?? e.totalDeepWork ?? 0), 0) * 100,
+        log.filter(countsAsWorkDay).reduce((sum, e) => sum + (e.totalHoursNet ?? e.totalDeepWork ?? 0), 0) * 100,
       ) / 100,
     },
     oscillation: {
