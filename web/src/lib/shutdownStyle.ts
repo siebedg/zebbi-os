@@ -8,6 +8,12 @@ export const SHUTDOWN_STYLES = [
   { id: 'terminal', name: 'Terminal', hint: 'Typ je avond af' },
   { id: 'hold', name: 'Vasthouden', hint: 'Houd vast om elke stap te bevestigen' },
   { id: 'sky', name: 'Sterrenhemel', hint: 'Steek elke ster aan' },
+  { id: 'tower', name: 'Toren', hint: 'Stapel een blok voor elke stap' },
+  { id: 'plant', name: 'Plantje', hint: 'Laat je plant groeien' },
+  { id: 'candles', name: 'Kaarsjes', hint: 'Blaas de kaarsen één voor één uit' },
+  { id: 'slide', name: 'Schuiven', hint: 'Schuif om elke stap te bevestigen' },
+  { id: 'scratch', name: 'Kraslot', hint: 'Kras je volgende stap tevoorschijn' },
+  { id: 'bubbles', name: 'Bellen', hint: 'Tik elke bel kapot' },
 ] as const
 
 export type ShutdownStyleId = (typeof SHUTDOWN_STYLES)[number]['id']

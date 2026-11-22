@@ -458,6 +458,115 @@ html.dark[data-palette='default'] {
       transform: none;
     }
   }
+  @keyframes sd-drop {
+    0% {
+      opacity: 0;
+      translate: 0 -160px;
+    }
+    70% {
+      opacity: 1;
+      translate: 0 6px;
+    }
+    100% {
+      translate: 0 0;
+    }
+  }
+  @keyframes sd-leaf {
+    from {
+      transform: scale(0);
+    }
+    to {
+      transform: scale(1);
+    }
+  }
+  @keyframes sd-flicker {
+    0%,
+    100% {
+      transform: translateX(-50%) scale(1, 1) rotate(-1deg);
+    }
+    25% {
+      transform: translateX(-52%) scale(0.95, 1.06) rotate(2deg);
+    }
+    50% {
+      transform: translateX(-48%) scale(1.04, 0.96) rotate(-2deg);
+    }
+    75% {
+      transform: translateX(-50%) scale(0.97, 1.04) rotate(1deg);
+    }
+  }
+  @keyframes sd-smoke {
+    0% {
+      opacity: 0.7;
+      transform: translate(-50%, 0) scaleY(0.6);
+    }
+    100% {
+      opacity: 0;
+      transform: translate(-30%, -28px) scaleY(1.4);
+    }
+  }
+  @keyframes sd-shimmer {
+    0%,
+    100% {
+      opacity: 0.55;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+  @keyframes sd-bob {
+    0%,
+    100% {
+      transform: translateY(0) scale(1);
+    }
+    50% {
+      transform: translateY(-10px) scale(1.015, 0.99);
+    }
+  }
+  @keyframes sd-burst {
+    to {
+      opacity: 0;
+      transform: scale(1.35);
+    }
+  }
+  @keyframes sd-rise {
+    0% {
+      opacity: 0;
+      transform: translateY(0);
+    }
+    10% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-36rem);
+    }
+  }
+  .sd-drop {
+    animation: sd-drop 0.55s cubic-bezier(0.34, 1.3, 0.64, 1) both;
+  }
+  .sd-leaf {
+    transform-box: fill-box;
+    transform-origin: right center;
+    animation: sd-leaf 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  .sd-flicker {
+    animation: sd-flicker 1.4s ease-in-out infinite;
+  }
+  .sd-smoke {
+    animation: sd-smoke 1.8s ease-out both;
+  }
+  .sd-shimmer {
+    animation: sd-shimmer 2s ease-in-out infinite;
+  }
+  .sd-bob {
+    animation: sd-bob 3.2s ease-in-out infinite;
+  }
+  .sd-burst {
+    animation: sd-burst 0.32s ease-out forwards;
+  }
+  .sd-rise {
+    animation: sd-rise 10s linear infinite;
+  }
   .sd-enter {
     animation: sd-enter 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
@@ -484,7 +593,15 @@ html.dark[data-palette='default'] {
     .sd-pulse,
     .sd-blink,
     .sd-twinkle,
-    .sd-pop {
+    .sd-pop,
+    .sd-drop,
+    .sd-leaf,
+    .sd-flicker,
+    .sd-smoke,
+    .sd-shimmer,
+    .sd-bob,
+    .sd-burst,
+    .sd-rise {
       animation: none;
     }
   }

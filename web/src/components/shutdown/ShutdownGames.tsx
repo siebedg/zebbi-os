@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Check, CornerDownLeft, Sparkles } from 'lucide-react'
 import { seededRandom, type ShutdownStep, type ShutdownStyleId } from '../../lib/shutdownStyle'
 import { ShutdownItemLabel } from './ShutdownItemLabel'
+import { BubblesMode, CandlesMode, PlantMode, ScratchMode, SlideMode, TowerMode } from './ShutdownGamesMore'
 
 export type GameProps = {
   steps: ShutdownStep[]
@@ -365,7 +366,11 @@ function HoldMode({ steps, index, accent, onComplete }: GameProps) {
         type="button"
         aria-label="Houd vast om te bevestigen"
         onPointerDown={(e) => {
-          e.currentTarget.setPointerCapture(e.pointerId)
+          try {
+              e.currentTarget.setPointerCapture(e.pointerId)
+            } catch {
+              /* synthetic or already-released pointer */
+            }
           start()
         }}
         onPointerUp={stop}
@@ -489,4 +494,10 @@ export const SHUTDOWN_GAMES: Record<ShutdownStyleId, (props: GameProps) => JSX.E
   terminal: TerminalMode,
   hold: HoldMode,
   sky: SkyMode,
+  tower: TowerMode,
+  plant: PlantMode,
+  candles: CandlesMode,
+  slide: SlideMode,
+  scratch: ScratchMode,
+  bubbles: BubblesMode,
 }
