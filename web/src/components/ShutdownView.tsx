@@ -1,125 +1,53 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
-import { ArrowRight, Check, Play } from 'lucide-react'
+import { PartyPopper, Play, RotateCcw, Shuffle, Smartphone, Undo2, X } from 'lucide-react'
 import type { ShutdownTemplate } from '../types'
 import { formatMmSs, SHUTDOWN_QR_PAYLOAD } from '../lib/shutdown'
 import {
+  clearShutdownSession,
   loadShutdownSession,
   saveShutdownSession,
   sessionSecondsLeft,
 } from '../lib/shutdownSession'
-import { Btn, Card, PageHeader } from './ui'
-import { HabitContractsImage } from './HabitContractsImage'
+import {
+  SHUTDOWN_STYLES,
+  buildShutdownSteps,
+  dayAccent,
+  dayNumber,
+  shuffleStyle,
+  todayStyleIndex,
+} from '../lib/shutdownStyle'
+import { SHUTDOWN_GAMES } from './shutdown/ShutdownGames'
 
-function SunMark({ color }: { color: string }) {
+function barButton(active = false) {
+  return `inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors ${
+    active
+      ? 'bg-[var(--color-text)] text-[var(--color-bg)]'
+      : 'text-[var(--color-muted)] hover:bg-[var(--color-surface-overlay)] hover:text-[var(--color-text)]'
+  }`
+}
+
+function PhoneQr({ onClose }: { onClose: () => void }) {
+  const [src, setSrc] = useState('')
+  useEffect(() => {
+    void QRCode.toDataURL(SHUTDOWN_QR_PAYLOAD, {
+      width: 240,
+      margin: 1,
+      color: { dark: '#111111', light: '#ffffff' },
+    }).then(setSrc)
+  }, [])
   return (
-    <svg viewBox="0 0 32 32" className="h-[1em] w-[1em] shrink-0" aria-hidden>
-      <circle cx="16" cy="16" r="5.25" fill={color} />
-      <g stroke={color} strokeWidth="2.15" strokeLinecap="round" fill="none">
-        <path d="M16 3.2v3.1M16 25.7v3.1M6.2 6.2l2.2 2.2M23.6 23.6l2.2 2.2M3.2 16h3.1M25.7 16h3.1M6.2 25.8l2.2-2.2M23.6 8.4l2.2-2.2" />
-      </g>
-    </svg>
-  )
-}
-
-function ShutdownItemLabel({ text }: { text: string }) {
-  const lower = text.toLowerCase()
-
-  if (lower.includes('supplement')) {
-    return (
-      <>
-        Take your supplements{' '}
-        <span className="font-semibold underline underline-offset-2">NOW</span> before you continue
-      </>
-    )
-  }
-
-  if (lower.includes('plan tomorrow')) {
-    return (
-      <span className="inline-flex flex-wrap items-center gap-2">
-        Plan tomorrow
-        <SunMark color="#facc15" />
-        <span className="font-medium text-[var(--color-muted)]">{'&'}</span>
-        <SunMark color="#fb923c" />
-      </span>
-    )
-  }
-
-  if (lower.includes('yoga')) {
-    return (
-      <span className="flex flex-col gap-2">
-        <span className="inline-flex flex-wrap items-center gap-1.5">
-          Take yoga mat
-          <ArrowRight className="h-4 w-4 shrink-0 text-[var(--color-muted)]" strokeWidth={2.25} />
-          now do some yoga with Bend 😊
-        </span>
-        <img
-          src="/yoga-foam-roll.gif"
-          alt="Yoga foam roll with Bend"
-          className="mt-0.5 w-full max-w-xs rounded-xl border border-[var(--color-border)]"
-        />
-      </span>
-    )
-  }
-
-  if (lower.includes('intention')) {
-    return (
-      <>
-        <span className="italic underline decoration-2 underline-offset-2 text-[var(--color-bad)]">
-          Intention
-        </span>
-{' + Google Calendar'}
-      </>
-    )
-  }
-
-  return <>{text}</>
-}
-
-function isSupplementItem(text: string) {
-  return text.toLowerCase().includes('supplement')
-}
-
-function supplementKey(template: ShutdownTemplate): string | null {
-  for (const section of template.sections) {
-    const idx = section.items.findIndex(isSupplementItem)
-    if (idx >= 0) return `${section.id}-${idx}`
-  }
-  return null
-}
-
-function CheckRow({
-  done,
-  onToggle,
-  text,
-}: {
-  done: boolean
-  onToggle: () => void
-  text: string
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className={`flex w-full items-start gap-3 rounded-2xl border px-3.5 py-3 text-left transition ${
-        done
-          ? 'border-[var(--color-border)] bg-[var(--color-surface-overlay)]'
-          : 'border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-overlay)]'
-      }`}
-    >
-      <span
-        className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-          done
-            ? 'border-[var(--color-text)] bg-[var(--color-text)] text-[var(--color-bg)]'
-            : 'border-[var(--color-border)] text-transparent'
-        }`}
-      >
-        <Check className="h-3 w-3" />
-      </span>
-      <span className={done ? 'text-[var(--color-muted)] line-through' : 'text-[var(--color-text)]'}>
-        <ShutdownItemLabel text={text} />
-      </span>
-    </button>
+    <div className="sd-enter absolute right-0 top-full z-30 mt-2 w-56 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-center shadow-[0_20px_50px_-20px_rgba(0,0,0,0.35)]">
+      {src ? (
+        <img src={src} alt="QR naar shutdown op je telefoon" className="mx-auto h-40 w-40 rounded-lg" />
+      ) : (
+        <p className="py-16 text-xs text-[var(--color-muted)]">QR laden…</p>
+      )}
+      <p className="mt-2 text-xs text-[var(--color-muted)]">Scan om verder te doen op je telefoon</p>
+      <button type="button" onClick={onClose} className="mt-2 text-xs font-medium text-[var(--color-text)] hover:underline">
+        Sluiten
+      </button>
+    </div>
   )
 }
 
@@ -142,19 +70,27 @@ export function ShutdownView({
   const existing = loadShutdownSession()
   const [startedAt, setStartedAt] = useState<number | null>(existing?.startedAt ?? null)
   const [timerMinutes, setTimerMinutes] = useState(existing?.timerMinutes ?? template?.timerMinutes ?? 15)
-  const [killDone, setKillDone] = useState(existing?.killDone ?? false)
   const [secondsLeft, setSecondsLeft] = useState(() =>
     existing ? sessionSecondsLeft(existing) : (template?.timerMinutes ?? 0) * 60,
   )
   const [checked, setChecked] = useState<Set<string>>(() => new Set(existing?.checked ?? []))
-  const [qrDataUrl, setQrDataUrl] = useState('')
+  const [qrOpen, setQrOpen] = useState(false)
+
+  const day = dayNumber()
+  const accent = dayAccent(day)
+  const [styleIndex, setStyleIndex] = useState(() => todayStyleIndex(day))
+  const style = SHUTDOWN_STYLES[styleIndex]
+  const Game = SHUTDOWN_GAMES[style.id]
+
+  const steps = useMemo(() => (template ? buildShutdownSteps(template) : []), [template])
+  const currentIndex = steps.findIndex((s) => !checked.has(s.key))
+  const allDone = steps.length > 0 && currentIndex === -1
 
   useEffect(() => {
     const session = loadShutdownSession()
     if (session) {
       setStartedAt(session.startedAt)
       setTimerMinutes(session.timerMinutes)
-      setKillDone(session.killDone)
       setChecked(new Set(session.checked))
       setSecondsLeft(sessionSecondsLeft(session))
       return
@@ -178,23 +114,16 @@ export function ShutdownView({
       startedAt,
       timerMinutes,
       templateId: template.id,
-      killDone,
+      killDone: false,
       checked: [...checked],
     })
-  }, [template, startedAt, timerMinutes, killDone, checked])
+  }, [template, startedAt, timerMinutes, checked])
 
-  useEffect(() => {
-    void QRCode.toDataURL(SHUTDOWN_QR_PAYLOAD, {
-      width: 240,
-      margin: 1,
-      color: { dark: '#111111', light: '#f8f6f2' },
-    }).then(setQrDataUrl)
-  }, [])
 
   if (!template) {
     return (
       <div className="mx-auto max-w-lg py-16 text-center text-sm text-[var(--color-muted)]">
-        Geen shutdown template.
+        Geen shutdown routine. Maak er een aan in Settings.
       </div>
     )
   }
@@ -204,116 +133,156 @@ export function ShutdownView({
     setStartedAt(now)
     setTimerMinutes(template.timerMinutes)
     setSecondsLeft(template.timerMinutes * 60)
-    setKillDone(false)
     setChecked(new Set())
-    saveShutdownSession({
-      startedAt: now,
-      timerMinutes: template.timerMinutes,
-      templateId: template.id,
-      killDone: false,
-      checked: [],
-    })
   }
 
-  const toggleItem = (key: string) => {
+  /** Restart the countdown; progress on the steps stays. */
+  const resetTimer = () => {
+    setStartedAt(Date.now())
+    setTimerMinutes(template.timerMinutes)
+    setSecondsLeft(template.timerMinutes * 60)
+  }
+
+  const stopFlow = () => {
+    clearShutdownSession()
+    setStartedAt(null)
+    setChecked(new Set())
+    setQrOpen(false)
+  }
+
+  const completeCurrent = () => {
+    const step = steps[currentIndex]
+    if (!step) return
+    setChecked((prev) => new Set(prev).add(step.key))
+  }
+
+  const undoLast = () => {
+    const last = [...steps].reverse().find((s) => checked.has(s.key))
+    if (!last) return
     setChecked((prev) => {
       const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
+      next.delete(last.key)
       return next
     })
   }
 
-  const gateKey = supplementKey(template)
-  const restUnlocked = !gateKey || checked.has(gateKey)
+  const reroll = () => setStyleIndex((i) => shuffleStyle(i, day))
 
   if (!startedAt) {
     return (
-      <div className="osc-fade-up mx-auto flex max-w-lg flex-col items-center pb-16 pt-8 text-center">
-        <PageHeader className="mb-10" title="Daily shutdown" />
-        <Btn onClick={startFlow} className="px-8 py-3 text-base">
-          <Play className="h-4 w-4" />
-          Start Daily Shutdown
-        </Btn>
-        <p className="mt-4 text-xs text-[var(--color-muted)]">{template.timerMinutes} min</p>
+      <div className="osc-fade-up mx-auto flex min-h-[70vh] max-w-lg flex-col items-center justify-center pb-16 text-center">
+        <span
+          className="inline-flex h-12 items-center rounded-full px-4 text-xs font-semibold"
+          style={{ background: `color-mix(in srgb, ${accent} 14%, transparent)`, color: accent }}
+        >
+          Vandaag: {style.name}
+        </span>
+        <h1 className="mt-6 font-display text-[2.6rem] font-medium leading-none tracking-tight text-[var(--color-text)] sm:text-6xl">
+          Daily shutdown
+        </h1>
+        <p className="mt-4 text-sm text-[var(--color-muted)]">
+          {style.hint}. {steps.length} stappen, {template.timerMinutes} minuten.
+        </p>
+        <button
+          type="button"
+          onClick={startFlow}
+          className="mt-10 inline-flex h-14 items-center gap-2.5 rounded-full px-9 text-base font-semibold text-white transition-transform hover:scale-[1.03] active:scale-95"
+          style={{ background: accent, boxShadow: `0 14px 40px -12px ${accent}` }}
+        >
+          <Play className="h-5 w-5" fill="currentColor" />
+          Start shutdown
+        </button>
+        <button type="button" onClick={reroll} className={`mt-4 ${barButton()}`}>
+          <Shuffle className="h-3.5 w-3.5" />
+          Andere stijl
+        </button>
       </div>
     )
   }
 
+  const timeUp = secondsLeft === 0
+  const doneCount = steps.filter((s) => checked.has(s.key)).length
+
   return (
-    <div className="osc-fade-up mx-auto max-w-lg space-y-6 pb-12">
-      <div className="text-center">
-        <h1 className="font-display text-[2.15rem] font-medium tracking-tight text-[var(--color-text)] sm:text-4xl">
-          Daily shutdown
-        </h1>
-        <p className="mt-3 font-display text-6xl font-medium tabular-nums tracking-tight text-[var(--color-text)]">
-          {formatMmSs(secondsLeft)}
-        </p>
-      </div>
+    <div className="mx-auto max-w-2xl pb-16">
+      {/* Control bar: timer with reset, style shuffle, undo, phone, stop */}
+      <div className="sticky top-[calc(env(safe-area-inset-top)+7.5rem)] z-20 mb-8 md:top-4">
+        <div className="relative flex items-center gap-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]/90 p-1.5 shadow-[var(--shadow-card)] backdrop-blur-md">
+          <div
+            className={`flex h-9 items-center gap-2 rounded-full px-3.5 font-display text-lg font-medium tabular-nums ${
+              timeUp ? 'text-[var(--color-bad)]' : 'text-[var(--color-text)]'
+            }`}
+            role="timer"
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${timeUp ? '' : 'animate-pulse'}`}
+              style={{ background: timeUp ? 'var(--color-bad)' : accent }}
+            />
+            {formatMmSs(secondsLeft)}
+          </div>
+          <button type="button" onClick={resetTimer} className={barButton()} title="Timer opnieuw starten">
+            <RotateCcw className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Reset timer</span>
+          </button>
 
-      {(template.imageDataUrl || template.imageName) && (
-        <div className="space-y-3">
-          <p className="text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
-            Habit Contracts
-          </p>
-          <HabitContractsImage imageDataUrl={template.imageDataUrl} imageName={template.imageName} />
+          <div className="mx-1 h-5 w-px bg-[var(--color-border)]" />
+
+          <span className="hidden text-xs tabular-nums text-[var(--color-muted)] sm:inline">
+            {doneCount}/{steps.length}
+          </span>
+
+          <div className="ml-auto flex items-center gap-0.5">
+            <button type="button" onClick={undoLast} disabled={doneCount === 0} className={`${barButton()} disabled:opacity-30`} title="Stap terug">
+              <Undo2 className="h-3.5 w-3.5" />
+            </button>
+            <button type="button" onClick={reroll} className={barButton()} title="Andere stijl">
+              <Shuffle className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{style.name}</span>
+            </button>
+            <button type="button" onClick={() => setQrOpen((o) => !o)} className={barButton(qrOpen)} title="Verder op telefoon">
+              <Smartphone className="h-3.5 w-3.5" />
+            </button>
+            <button type="button" onClick={stopFlow} className={barButton()} title="Shutdown stoppen">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          {qrOpen && <PhoneQr onClose={() => setQrOpen(false)} />}
         </div>
-      )}
-
-      {(
-        <Card className="p-5 text-center">
-          {qrDataUrl ? (
-            <>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
-                Scan
-              </p>
-              <img
-                src={qrDataUrl}
-                alt="Shutdown QR"
-                className="mx-auto mt-4 h-44 w-44 rounded-2xl border border-[var(--color-border)] bg-white p-2"
-              />
-            </>
-          ) : (
-            <p className="text-sm text-[var(--color-muted)]">QR wordt opgebouwd…</p>
-          )}
-        </Card>
-      )}
-
-      <div className="space-y-6">
-        {template.sections.map((section) =>
-          section.items.map((item, idx) => {
-            if (!isSupplementItem(item)) return null
-            const key = `${section.id}-${idx}`
-            return <CheckRow key={key} done={checked.has(key)} onToggle={() => toggleItem(key)} text={item} />
-          }),
-        )}
-
-        {restUnlocked &&
-          template.sections.map((section) => {
-            const items = section.items
-              .map((item, idx) => ({ item, idx }))
-              .filter(({ item }) => !isSupplementItem(item))
-            if (items.length === 0) return null
-            return (
-              <div key={section.id} className="space-y-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">
-                  {section.title}
-                </p>
-                {items.map(({ item, idx }) => {
-                  const key = `${section.id}-${idx}`
-                  return (
-                    <CheckRow
-                      key={key}
-                      done={checked.has(key)}
-                      onToggle={() => toggleItem(key)}
-                      text={item}
-                    />
-                  )
-                })}
-              </div>
-            )
-          })}
+        <div className="mx-6 mt-2 h-1 overflow-hidden rounded-full bg-[var(--color-surface-overlay)]">
+          <div
+            className="h-full rounded-full transition-[width] duration-500"
+            style={{ width: `${(doneCount / Math.max(1, steps.length)) * 100}%`, background: accent }}
+          />
+        </div>
       </div>
+
+      {allDone ? (
+        <div className="sd-pop flex min-h-[26rem] flex-col items-center justify-center text-center">
+          <span
+            className="inline-flex h-20 w-20 items-center justify-center rounded-full"
+            style={{ background: `color-mix(in srgb, ${accent} 16%, transparent)`, color: accent }}
+          >
+            <PartyPopper className="h-9 w-9" />
+          </span>
+          <h2 className="mt-6 font-display text-4xl font-medium tracking-tight text-[var(--color-text)] sm:text-5xl">
+            Dag afgesloten
+          </h2>
+          <p className="mt-3 text-sm text-[var(--color-muted)]">
+            Alle {steps.length} stappen gedaan. Goed gedaan.
+          </p>
+          <div className="mt-8 flex gap-2">
+            <button type="button" onClick={undoLast} className={barButton()}>
+              <Undo2 className="h-3.5 w-3.5" />
+              Stap terug
+            </button>
+            <button type="button" onClick={stopFlow} className={barButton(true)}>
+              Afsluiten
+            </button>
+          </div>
+        </div>
+      ) : (
+        <Game key={style.id} steps={steps} index={currentIndex} accent={accent} day={day} onComplete={completeCurrent} />
+      )}
     </div>
   )
 }
