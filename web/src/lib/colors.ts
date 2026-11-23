@@ -160,6 +160,41 @@ export function getRowStyle(entry: DailyEntry, theme: Theme): CellStyle | null {
   return null
 }
 
+const round2 = (n: number) => Math.round(n * 100) / 100
+
+/**
+ * School day with deep work: the DW columns list the deep work blocks first,
+ * then the lesson blocks; Tot and Foc% cover both.
+ */
+function schoolWorkColumns(e: DailyEntry): { hours: number; lesson: boolean }[] {
+  const deep = [e.deepWork1, e.deepWork2, e.deepWork3, e.deepWork4, e.deepWork5, e.deepWork6]
+    .filter((h): h is number => h != null && h > 0)
+    .map((hours) => ({ hours, lesson: false }))
+  const lessons = activeSchoolSessions(e)
+    .map(sessionNetHours)
+    .filter((h) => h > 0)
+    .map((hours) => ({ hours, lesson: true }))
+  return [...deep, ...lessons]
+}
+
+/** Deep work and lesson hours of a school day that has both. */
+export function schoolDaySplit(entry: DailyEntry): { deepWork: number; lessons: number } | null {
+  const e = enrichEntry(entry)
+  if (!isSchoolDay(e) || !hasDeepWork(e)) return null
+  const lessons = activeSchoolSessions(e).map(sessionNetHours).reduce((a, b) => a + b, 0)
+  return { deepWork: round2(e.totalHoursNet ?? e.totalDeepWork ?? 0), lessons: round2(lessons) }
+}
+
+/** True when a DW cell on a school day holds a lesson block rather than deep work. */
+export function isLessonCell(entry: DailyEntry, field: string): boolean {
+  const m = field.match(/^deepWork(\d)$/)
+  if (!m) return false
+  const e = enrichEntry(entry)
+  if (!isSchoolDay(e)) return false
+  if (!hasDeepWork(e)) return activeSchoolSessions(e)[parseInt(m[1], 10) - 1] != null
+  return schoolWorkColumns(e)[parseInt(m[1], 10) - 1]?.lesson ?? false
+}
+
 export function getDisplayValue(entry: DailyEntry, field: string): unknown {
   const e = enrichEntry(entry)
   if (field === 'sleepScore' && e.date < SLEEP_SCORE_TRACKED_FROM) return undefined
@@ -186,6 +221,26 @@ export function getDisplayValue(entry: DailyEntry, field: string): unknown {
       if (!s) return undefined
       const hours = sessionNetHours(s)
       return hours > 0 ? hours : undefined
+    }
+  }
+
+  // School day with deep work too: show both, added together.
+  if (isSchoolDay(e)) {
+    const cols = schoolWorkColumns(e)
+    const lessons = activeSchoolSessions(e)
+    const lessonNet = lessons.map(sessionNetHours).reduce((a, b) => a + b, 0)
+    const dwNet = e.totalHoursNet ?? e.totalDeepWork ?? 0
+    const dwMatch = field.match(/^deepWork(\d)$/)
+    if (dwMatch) return cols[parseInt(dwMatch[1], 10) - 1]?.hours
+    if (field === 'totalDeepWork' || field === 'totalHoursNet') return round2(dwNet + lessonNet)
+    if (field === 'totalHoursWorked') {
+      const lessonGross = lessons.map(sessionGrossHours).reduce((a, b) => a + b, 0)
+      return round2((e.totalHoursWorked ?? dwNet) + lessonGross)
+    }
+    if (field === 'avgFocus') {
+      if (e.schoolFocus == null || lessonNet === 0) return e.avgFocus
+      if (e.avgFocus == null) return e.schoolFocus
+      return Math.round((e.avgFocus * dwNet + e.schoolFocus * lessonNet) / (dwNet + lessonNet))
     }
   }
 
@@ -227,6 +282,12 @@ export function getCellStyle(
     return timeNeutralStyle(theme)
   }
   if (DEEP_WORK_FIELDS.has(field)) {
+    if (entry && isLessonCell(entry, field)) {
+      if (neutral) return neutralSurface(theme, 'low')
+      return theme === 'dark'
+        ? { level: 'ok', bg: '#4a2f1c', text: '#f2b98a' }
+        : { level: 'ok', bg: '#f6e3d3', text: '#9a5320' }
+    }
     if (entry && isVacationDay(entry)) {
       return neutral ? neutralSurface(theme, 'high') : VACATION_RED_STYLE
     }

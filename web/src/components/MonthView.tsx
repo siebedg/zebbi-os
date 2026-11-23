@@ -21,6 +21,8 @@ import { isValidDateStr } from '../lib/utils'
 import {
   DEEP_WORK_FIELDS,
   SCHOOL_FILL_FIELDS,
+  isLessonCell,
+  schoolDaySplit,
   getRestStyle,
   formatFieldValue,
   getCellStyle,
@@ -254,7 +256,11 @@ export function MonthView({
                           title={
                             schoolTtFill
                               ? schoolStripeTitle(entry)
-                              : display
+                              : display && isLessonCell(entry, col.key)
+                                ? `${col.label}: ${display} (les)`
+                                : display && col.key === 'totalDeepWork' && schoolDaySplit(entry)
+                                  ? `Tot: ${display} (${schoolDaySplit(entry)!.deepWork}u deep work + ${schoolDaySplit(entry)!.lessons}u les)`
+                                  : display
                                 ? `${col.label}: ${display}`
                                 : col.label
                           }
