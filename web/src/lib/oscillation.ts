@@ -7,7 +7,8 @@ import {
 } from 'date-fns'
 import { nl } from 'date-fns/locale'
 import type { DailyEntry } from '../types'
-import { enrichEntry, sessionDurationMinutes } from './sessions'
+import { sessionDurationMinutes } from './sessions'
+import { enrichForStats } from './statsEntry'
 import { isRestDay } from './restDays'
 import { hasDeepWork, isSchoolDay } from './schoolDays'
 import { isValidDateStr } from './utils'
@@ -136,7 +137,7 @@ function collectMetricValues(entries: DailyEntry[], metricId: string): number[] 
   const values: number[] = []
   for (const raw of entries) {
     if (!isValidDateStr(raw.date)) continue
-    const v = getMetricValue(enrichEntry(raw), metricId)
+    const v = getMetricValue(enrichForStats(raw), metricId)
     if (v != null && Number.isFinite(v) && v > 0) values.push(v)
   }
   return values
@@ -148,7 +149,7 @@ export function collectMetricSeries(entries: DailyEntry[], metricId: string): Os
   const points: OscillationPoint[] = []
   for (const raw of [...entries].sort((a, b) => a.date.localeCompare(b.date))) {
     if (!isValidDateStr(raw.date)) continue
-    const v = getMetricValue(enrichEntry(raw), metricId)
+    const v = getMetricValue(enrichForStats(raw), metricId)
     if (v == null) continue
     points.push({
       date: raw.date,

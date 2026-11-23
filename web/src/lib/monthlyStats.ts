@@ -4,6 +4,7 @@ import type { DailyEntry } from '../types'
 import { SLEEP_SCORE_TRACKED_FROM } from '../types'
 import { enrichEntry } from './sessions'
 import { countsAsWorkDay } from './schoolDays'
+import { enrichForStats } from './statsEntry'
 import { entryHasData, formatTime12, parseTimeToMinutes } from './utils'
 
 const FIRST_MONTH = startOfMonth(new Date(2025, 11, 1))
@@ -68,7 +69,7 @@ function sleepScorePct(score?: number): number | null {
 function monthEntries(entries: DailyEntry[], monthKey: string): DailyEntry[] {
   return entries
     .filter((e) => e.date.startsWith(monthKey) && entryHasData(enrichEntry(e)))
-    .map(enrichEntry)
+    .map(enrichForStats)
 }
 
 function buildMetric(
@@ -95,7 +96,7 @@ export function summarizeMonth(monthKey: string, entries: DailyEntry[]): MonthSu
   const meds = rows.map((e) => e.meditation).filter((v): v is number => v != null)
   const grRows = rows.filter((e) => e.gratitude != null)
   const exRows = rows.filter((e) => e.exercise != null)
-  // School days only count when deep work was logged on them
+  // School days count with deep work + lessons added together
   const workRows = rows.filter(countsAsWorkDay)
   const focuses = workRows.map((e) => e.avgFocus).filter((v): v is number => v != null)
   const dws = workRows.map((e) => e.totalDeepWork).filter((v): v is number => v != null)
@@ -186,7 +187,7 @@ function minutesToTimeStr(m: number): string {
 
 /** Gemiddelden per maandkolom voor de onderste rij in MonthView */
 export function monthColumnAverages(monthKey: string, entries: DailyEntry[]): Record<string, string> {
-  const rows = entries.filter((e) => e.date.startsWith(monthKey)).map(enrichEntry)
+  const rows = entries.filter((e) => e.date.startsWith(monthKey)).map(enrichForStats)
   const workRows = rows.filter(countsAsWorkDay)
   const out: Record<string, string> = {}
   if (rows.length === 0) return out
@@ -251,7 +252,7 @@ export function monthColumnAverageValues(
   monthKey: string,
   entries: DailyEntry[],
 ): Record<string, number | null> {
-  const rows = entries.filter((e) => e.date.startsWith(monthKey)).map(enrichEntry)
+  const rows = entries.filter((e) => e.date.startsWith(monthKey)).map(enrichForStats)
   const workRows = rows.filter(countsAsWorkDay)
   const out: Record<string, number | null> = {}
   if (rows.length === 0) return out
